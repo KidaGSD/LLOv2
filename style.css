@@ -1,0 +1,166 @@
+body {
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+    color: #333;
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h1 {
+    color: #007bff; /* Blue title */
+    margin-bottom: 20px;
+}
+
+.controls {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px; /* Spacing between buttons */
+}
+
+.controls button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    color: white;
+}
+
+/* Specific button colors from the image */
+#btn-drums { background-color: #6c757d; } /* Gray */
+#btn-bass { background-color: #343a40; } /* Dark Gray/Black */
+#btn-guitar { background-color: #fd7e14; } /* Orange */
+#btn-keys { background-color: #0dcaf0; } /* Cyan/Blue */
+#btn-vocals { background-color: #d63384; } /* Purple */
+#btn-fx { background-color: #198754; } /* Green */
+
+.main-content {
+    display: flex;
+    gap: 30px; /* Space between camera and mixer */
+    width: 100%;
+    max-width: 1000px; /* Limit overall width */
+    justify-content: center;
+}
+
+#camera-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 680px; /* Accommodate 640px canvas + padding */
+}
+
+#p5-canvas {
+    width: 640px;
+    height: 360px;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+    position: relative; /* Needed for potential overlays */
+}
+
+#p5-canvas canvas { /* Ensure p5 canvas fits */
+    display: block;
+}
+
+#info-bar {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+#capture-button {
+    padding: 12px 25px;
+    font-size: 1.1em;
+    background-color: #6c757d; /* Gray */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    max-width: 200px; /* Limit button width */
+}
+
+#capture-button:hover {
+    background-color: #5a6268;
+}
+
+#mixer-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    width: 300px; /* Fixed width for mixer */
+    height: fit-content; /* Adjust height based on content */
+}
+
+#mixer-container h2 {
+    color: #dc3545; /* Pink/Red Mixer title */
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+#test-sound-button {
+    background-color: #dc3545; /* Red */
+    color: white;
+    border: none;
+    padding: 10px;
+    width: 100%;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+#test-sound-button:hover {
+    background-color: #c82333;
+}
+
+#track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.track-item {
+    background-color: #343a40; /* Dark background for tracks */
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.track-status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #198754; /* Green dot for active */
+}
+
+.instructions {
+    margin-top: 30px;
+    font-size: 0.9em;
+    color: #666;
+    text-align: center;
+    max-width: 600px;
+}
+
+/* Style for tint overlay (will be applied via JS) */
+.tint-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Default tint, adjust as needed */
+    pointer-events: none; /* Allow clicks through */
+    z-index: 10;
+}

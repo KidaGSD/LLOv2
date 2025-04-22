@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera-driven Groovebox</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Load Tone.js first, before other scripts -->
+    <script>
+        // Flag to track Tone.js loading status
+        window.toneLoaded = false;
+        
+        function checkTone() {
+            if (typeof Tone !== 'undefined') {
+                console.log("Tone.js loaded successfully:", Tone.version);
+                window.toneLoaded = true;
+            } else {
+                console.error("Tone.js failed to load");
+            }
+        }
+    </script>
+    <!-- Use a specific version from CDN instead of local file -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onload="checkTone()"></script>
+    
+    <!-- Load other libraries after Tone.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/addons/p5.sound.min.js"></script>
+    <script src="https://unpkg.com/meyda@5.6.0/dist/web/meyda.min.js"></script>
+</head>
+<body>
+    <h1>Camera-driven Groovebox</h1>
+    <div id="tone-error" style="display:none; color:red; padding:10px; border:1px solid red; margin:10px;">
+        ERROR: Tone.js library not loaded. Please reload the page or try a different browser.
+    </div>
+
+    <div class="controls">
+        <button id="btn-drums">Q: Drums</button>
+        <button id="btn-bass">W: Bass</button>
+        <button id="btn-guitar">E: Guitar</button>
+        <button id="btn-keys">R: Keys</button>
+        <button id="btn-vocals">T: Vocals</button>
+        <button id="btn-fx">Y: FX</button>
+    </div>
+
+    <div class="main-content">
+        <div id="camera-container">
+            <div id="p5-canvas"></div>
+            <div id="info-bar">Filter: <span id="filter-name">GRAY</span> | Instrument: <span id="instrument-name">DRUMS</span></div>
+            <button id="capture-button">Capture</button>
+        </div>
+        <div id="mixer-container">
+            <h2>Mixer</h2>
+            <button id="test-sound-button">Test Sound</button>
+            <div id="track-list">
+                <!-- Tracks will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <p class="instructions">
+        A camera-driven groovebox prototype that turns images into music loops.
+        Hold Q, W, E, R, T, or Y to select instrument, then click "Capture" to sample.
+    </p>
+
+    <!-- For real Stability API integration (Node.js backend required) -->
+    <div class="backend-info" style="background: #fffbe6; padding: 10px; margin-top: 20px; border: 1px solid #e6d180;">
+        <h3>Audio Generation</h3>
+        <p>Currently using mock audio generation. For real music generation with Stability AI:</p>
+        <ol>
+            <li>Create a Node.js backend with Express.js</li>
+            <li>Add your Stability AI API key to the backend</li>
+            <li>Update the API_ENDPOINT in api.js to point to your backend</li>
+        </ol>
+        <p>See server.js example in the documentation.</p>
+    </div>
+    
+    <!-- Initialize Tone.js on first user interaction -->
+    <script>
+        window.addEventListener('load', function() {
+            console.log("Page loaded, Tone available:", typeof Tone !== 'undefined');
+            
+            // Show error if Tone.js didn't load
+            if (typeof Tone === 'undefined') {
+                document.getElementById('tone-error').style.display = 'block';
+            }
+            
+            // Make Tone globally available to all scripts
+            window.Tone = Tone;
+            
+            // Get UI elements that need to start audio
+            const captureButton = document.getElementById('capture-button');
+            const testSoundButton = document.getElementById('test-sound-button');
+            const buttons = document.querySelectorAll('.controls button');
+            
+            // Function to initialize audio on first user interaction
+            async function initAudio() {
+                if (typeof Tone !== 'undefined' && Tone.context && Tone.context.state !== 'running') {
+                    console.log("Starting Tone.js audio context...");
+                    try {
+                        await Tone.start();
+                        console.log("Tone.js audio context started!");
+                    } catch (e) {
+                        console.error("Error starting Tone.js:", e);
+                    }
+                }
+                
+                // Remove this initialization once it's happened
+                [captureButton, testSoundButton, ...buttons].forEach(button => {
+                    if (button) button.removeEventListener('click', initAudio);
+                });
+            }
+            
+            // Add the init function to all interactive elements
+            [captureButton, testSoundButton, ...buttons].forEach(button => {
+                if (button) button.addEventListener('click', initAudio, { once: false });
+            });
+        });
+    </script>
+    
+    <!-- Scripts using Tone.js must be loaded after Tone.js -->
+    <script src="sketch.js"></script>
+    <script src="audio.js"></script>
+    <script src="api.js"></script>
+    <script src="serial.js"></script>
+</body>
+</html>

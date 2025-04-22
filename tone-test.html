@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tone.js Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+    .success { color: green; }
+    .error { color: red; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Tone.js Test Page</h1>
+  <div id="status">Loading Tone.js...</div>
+  
+  <div>
+    <button id="start">1. Start Audio Context</button>
+    <button id="beep">2. Play Simple Beep</button>
+    <button id="player">3. Test Player</button>
+  </div>
+  
+  <div id="log"></div>
+  
+  <!-- Load Tone.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  
+  <script>
+    // Logging helper
+    function log(message, isError = false) {
+      const logElement = document.getElementById('log');
+      const entry = document.createElement('pre');
+      entry.textContent = `${new Date().toISOString().substr(11, 8)} - ${message}`;
+      entry.className = isError ? 'error' : '';
+      logElement.prepend(entry);
+      console.log(message);
+    }
+    
+    // Check if Tone.js loaded
+    window.addEventListener('load', function() {
+      const statusElement = document.getElementById('status');
+      
+      if (typeof Tone !== 'undefined') {
+        statusElement.textContent = `✅ Tone.js v${Tone.version} loaded successfully!`;
+        statusElement.className = 'success';
+        log(`Tone.js loaded: ${Tone.version}`);
+        log(`AudioContext state: ${Tone.context.state}`);
+      } else {
+        statusElement.textContent = '❌ Failed to load Tone.js';
+        statusElement.className = 'error';
+        log('Tone.js failed to load', true);
+      }
+    });
+    
+    // Step 1: Start audio context
+    document.getElementById('start').addEventListener('click', async function() {
+      try {
+        await Tone.start();
+        log(`AudioContext started: ${Tone.context.state}`);
+      } catch (e) {
+        log(`Error starting AudioContext: ${e.message}`, true);
+      }
+    });
+    
+    // Step 2: Play a simple beep
+    document.getElementById('beep').addEventListener('click', function() {
+      try {
+        if (Tone.context.state !== "running") {
+          log('AudioContext not running. Click "Start Audio Context" first', true);
+          return;
+        }
+        
+        const oscillator = new Tone.Oscillator({
+          frequency: 440,
+          type: "sine"
+        }).toDestination();
+        
+        oscillator.start();
+        oscillator.stop("+0.3");
+        log('Playing beep (A4)');
+      } catch (e) {
+        log(`Error playing beep: ${e.message}`, true);
+      }
+    });
+    
+    // Step 3: Test Player
+    document.getElementById('player').addEventListener('click', async function() {
+      try {
+        if (Tone.context.state !== "running") {
+          log('AudioContext not running. Click "Start Audio Context" first', true);
+          return;
+        }
+        
+        // Create a silent buffer
+        const sampleRate = 44100;
+        const seconds = 2;
+        const channels = 2;
+        const length = sampleRate * seconds * channels;
+        const audioData = new Float32Array(length);
+        
+        // Add a simple tone (sine wave at 330Hz) to the buffer to make it audible
+        for (let i = 0; i < sampleRate * seconds; i++) {
+          const value = Math.sin(i * 2 * Math.PI * 330 / sampleRate) * 0.5;
+          audioData[i * 2] = value; // Left channel
+          audioData[i * 2 + 1] = value; // Right channel
+        }
+        
+        // Create audio buffer
+        const buffer = Tone.context.createBuffer(
+          channels,
+          sampleRate * seconds,
+          sampleRate
+        );
+        
+        // Copy data to channels
+        buffer.copyToChannel(audioData.subarray(0, sampleRate * seconds), 0);
+        buffer.copyToChannel(audioData.subarray(sampleRate * seconds), 1);
+        
+        log('Created test buffer');
+        
+        // Create and play Tone.Player
+        const player = new Tone.Player({
+          url: buffer,
+          loop: false,
+          onload: () => log('Player loaded successfully')
+        }).toDestination();
+        
+        player.start();
+        log('Started player with test buffer');
+      } catch (e) {
+        log(`Error testing player: ${e.message}`, true);
+      }
+    });
+  </script>
+</body>
+</html>
