@@ -1,4 +1,4 @@
-# Camera-driven Groovebox
+# LLO
 
 This is a browser-based music generation tool that uses your camera to create musical loops. It's an experiment in using vision to drive audio generation, with support for both web UI controls and an Arduino hardware controller.
 
@@ -14,11 +14,6 @@ Main features:
 - Control everything with either the web UI or a connected Arduino
 
 ## Requirements
-
-### For Basic Demo Mode:
-- Modern web browser (Chrome or Edge recommended)
-- Webcam (built-in or external)
-- No server required - runs fully in the browser with mock data
 
 ### For Full API Integration:
 - **Node.js and npm** for the server component (required for Stability AI API proxy)
