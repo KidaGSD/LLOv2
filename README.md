@@ -1,4 +1,4 @@
-# LLO
+# LLO :camera:
 
 This is a browser-based music generation tool that uses your camera to create musical loops. It's an experiment in using vision to drive audio generation, with support for both web UI controls and an Arduino hardware controller.
 
