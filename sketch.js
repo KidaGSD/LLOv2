@@ -11,8 +11,8 @@ let tintCol = null; // Color for tinting
 // Using the prompt tails from Section 8, but keeping colors consistent with the UI image/CSS for now.
 const instrumentMap = {
     'q': { name: 'DRUMS', color: [108, 117, 125], cssColor: '#6c757d', prompt: "boom-bap drums" },       // Key 1 (Q) -> "boom-bap drums" (UI: Gray)
-    'e': { name: 'GUITAR', color: [253, 126, 20], cssColor: '#fd7e14', prompt: "clean electric guitar riff" }, // Key E -> Added generic prompt (UI: Orange)
-    'r': { name: 'KEYS', color: [13, 202, 240], cssColor: '#0dcaf0', prompt: "dreamy pad chords" }     // Key 3 (R) -> "dreamy pad chords" (UI: Cyan)
+    'w': { name: 'GUITAR', color: [253, 126, 20], cssColor: '#fd7e14', prompt: "clean electric guitar riff" }, // Key W -> Guitar (UI: Orange)
+    'e': { name: 'KEYS', color: [13, 202, 240], cssColor: '#0dcaf0', prompt: "dreamy pad chords" }     // Key E -> Keys (UI: Cyan)
 };
 
 // Add filter control functions for Arduino integration
