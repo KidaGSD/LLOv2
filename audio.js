@@ -217,11 +217,9 @@ window.loadAndPlayAudio = async function(audioResult, instrumentType) {
         
         console.log(`Successfully decoded audio for ${instrumentType}, duration:`, audioBuffer.duration);
 
-        // COMPLETELY NEW APPROACH: Use a built-in HTML5 audio element instead of Tone.Player
-        // This is more reliable and avoids the complex Tone.js buffer handling
+        // Create audio URL and element
         const audioUrl = URL.createObjectURL(safeBlob);
         const audioElement = new Audio(audioUrl);
-        audioElement.loop = true;
         
         // Create a simple gain node for volume control
         const gainNode = Tone.context.createGain();
@@ -235,6 +233,7 @@ window.loadAndPlayAudio = async function(audioResult, instrumentType) {
             buffer: audioBuffer,
             mute: false,
             playing: false,
+            isLooping: false,
             start() {
                 if (!this.playing) {
                     this.audioElement.play().catch(e => console.error("Error playing audio:", e));
@@ -245,6 +244,11 @@ window.loadAndPlayAudio = async function(audioResult, instrumentType) {
                 this.audioElement.pause();
                 this.audioElement.currentTime = 0;
                 this.playing = false;
+                this.isLooping = false;
+            },
+            setLoop(shouldLoop) {
+                this.audioElement.loop = shouldLoop;
+                this.isLooping = shouldLoop;
             },
             dispose() {
                 this.stop();
@@ -328,8 +332,8 @@ window.loadAndPlayAudio = async function(audioResult, instrumentType) {
         // Update the players object
         players[instrumentType] = simplePlayer;
 
-        // Update Mixer UI
-        updateMixerUI(instrumentType, audioResult);
+        // Update Mixer UI with confirm button
+        updateMixerUI(instrumentType, audioResult, simplePlayer);
 
     } catch (error) {
         console.error(`Error loading or playing audio for ${instrumentType}:`, error);
@@ -386,7 +390,7 @@ function addDownloadButton(audioBlob, instrumentType) {
 }
 
 // Function to update the mixer UI - exported to global scope
-window.updateMixerUI = function(instrumentType, audioResult) {
+window.updateMixerUI = function(instrumentType, audioResult, player) {
     if (!trackListElement) {
         trackListElement = document.getElementById('track-list');
         if (!trackListElement) return;
@@ -398,22 +402,38 @@ window.updateMixerUI = function(instrumentType, audioResult) {
         trackItem.id = `track-${instrumentType}`;
         trackItem.className = 'track-item';
         trackItem.innerHTML = `
-            <div class="track-status"></div>
+            <div class="track-status">Preview</div>
             <span class="track-name">${instrumentType}</span>
             <span class="track-info">(${audioResult.key || 'N/A'}, ${audioResult.bpm || 'N/A'} BPM)</span>
             <div class="track-controls">
+                <button class="confirm-button">Confirm & Loop</button>
                 <button class="mute-button">Mute</button>
                 <input type="range" class="volume-slider" min="0" max="100" value="80" />
             </div>
         `;
         trackListElement.appendChild(trackItem);
 
+        // Add confirm button functionality
+        const confirmButton = trackItem.querySelector('.confirm-button');
+        confirmButton.addEventListener('click', () => {
+            if (!toneAvailable) return;
+            
+            if (player) {
+                player.setLoop(true);
+                confirmButton.style.display = 'none';
+                const statusElement = trackItem.querySelector('.track-status');
+                if (statusElement) {
+                    statusElement.textContent = 'Looping';
+                    statusElement.style.color = '#28a745';
+                }
+            }
+        });
+
         // Add mute functionality
         const muteButton = trackItem.querySelector('.mute-button');
         muteButton.addEventListener('click', () => {
             if (!toneAvailable) return;
             
-            const player = players[instrumentType];
             if (player) {
                 player.mute = !player.mute;
                 if (player.audioElement) {
@@ -429,7 +449,6 @@ window.updateMixerUI = function(instrumentType, audioResult) {
         volumeSlider.addEventListener('input', () => {
             if (!toneAvailable) return;
             
-            const player = players[instrumentType];
             if (player && player.audioElement) {
                 const value = volumeSlider.value / 100;
                 player.audioElement.volume = value;

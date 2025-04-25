@@ -4,8 +4,8 @@ const OPENAI_API_KEY = ""; // <-- IMPORTANT: Replace with your actual key or use
 const GPT4V_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
 const PROMPT_TEMPLATE = `Describe this scene in ≤ 50 chars;
-list 3 objects; suggest genre in 3 words;
-estimate BPM if rhythmic. Respond in JSON format: {"description": "", "objects": [], "genre": "", "bpm": null | number}`; // Modified for JSON output
+describe the scene with one emotion; suggest genre in 3 words;
+estimate BPM if rhythmic. No experimental. Respond in JSON format: {"description": "", "genre": "", "bpm": null | number}`; // Modified for JSON output
 
 async function describeScene(frameDataUrl) {
     if (OPENAI_API_KEY === "YOUR_OPENAI_API_KEY") {
@@ -113,7 +113,7 @@ async function describeScene(frameDataUrl) {
 
 // --- Stable Audio API ---
 
-const STABLE_AUDIO_API_KEY = "sk-iOwQLkiwWbth6ukfMR4EZqPsfYlC05711YylYHGpmNO4PXqX"; // <-- IMPORTANT: Replace with your actual key or use a secure method
+const STABLE_AUDIO_API_KEY = ""; // <-- IMPORTANT: Replace with your actual key or use a secure method
 const SA_GENERATE_ENDPOINT = "http://localhost:3000/api/generate-audio"; // URL to your Node.js proxy server
 
 /**

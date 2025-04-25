@@ -2,7 +2,7 @@ let cam;
 let canvas;
 
 // Instrument selection state
-let selectedInstrument = 'DRUMS'; // Default
+let selectedInstrument = 'DRUMS'; // Default changed back to DRUMS
 let filterKey = null; // Key currently held down (e.g., 'q', 'w')
 let tintCol = null; // Color for tinting
 
@@ -11,11 +11,8 @@ let tintCol = null; // Color for tinting
 // Using the prompt tails from Section 8, but keeping colors consistent with the UI image/CSS for now.
 const instrumentMap = {
     'q': { name: 'DRUMS', color: [108, 117, 125], cssColor: '#6c757d', prompt: "boom-bap drums" },       // Key 1 (Q) -> "boom-bap drums" (UI: Gray)
-    'w': { name: 'BASS', color: [52, 58, 64], cssColor: '#343a40', prompt: "synth bassline" },          // Key 2 (W) -> "synth bassline" (UI: Dark Gray)
-    'e': { name: 'GUITAR', color: [253, 126, 20], cssColor: '#fd7e14', prompt: "clean electric guitar riff" }, // Key E (Not in 1-5) -> Added generic prompt (UI: Orange)
-    'r': { name: 'KEYS', color: [13, 202, 240], cssColor: '#0dcaf0', prompt: "dreamy pad chords" },     // Key 3 (R) -> "dreamy pad chords" (UI: Cyan)
-    't': { name: 'VOCALS', color: [214, 51, 132], cssColor: '#d63384', prompt: "airy vocal chop" },     // Key 4 (T) -> "airy vocal chop" (UI: Purple)
-    'y': { name: 'FX', color: [25, 135, 84], cssColor: '#198754', prompt: "glitch fx sweep" }          // Key 5 (Y) -> "glitch fx sweep" (UI: Green)
+    'e': { name: 'GUITAR', color: [253, 126, 20], cssColor: '#fd7e14', prompt: "clean electric guitar riff" }, // Key E -> Added generic prompt (UI: Orange)
+    'r': { name: 'KEYS', color: [13, 202, 240], cssColor: '#0dcaf0', prompt: "dreamy pad chords" }     // Key 3 (R) -> "dreamy pad chords" (UI: Cyan)
 };
 
 // Add filter control functions for Arduino integration
@@ -69,6 +66,16 @@ function applyCurrentFilter(capture) {
 // Make functions available globally
 window.setFilterByName = setFilterByName;
 
+// Add global variables to store previous prompts and sounds
+let globalBPM = null;
+let globalGenre = null;
+let globalScale = null;
+let previousPrompts = [];
+let previousInstruments = new Set();
+
+// Add playback state tracking
+let isPlaying = false;
+
 function setup() {
     canvas = createCanvas(640, 360);
     canvas.parent('p5-canvas'); // Place canvas in the div
@@ -82,6 +89,19 @@ function setup() {
     // Add event listener for the capture button
     const captureButton = select('#capture-button');
     captureButton.mousePressed(handleCapture);
+
+    // Add event listener for the confirm button to control playback
+    const confirmButton = select('#btn-confirm');
+    confirmButton.mousePressed(async () => {
+        if (selectedInstrument) {
+            // Toggle playback state
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                await startPlayback();
+            }
+        }
+    });
 
     console.log("p5.js setup complete. Camera initialized.");
 }
@@ -198,7 +218,11 @@ function updateButtonStyles(activeKey) {
     }
 }
 
-function handleCapture() {
+async function handleCapture() {
+    if (!selectedInstrument) {
+        console.log("Please select an instrument first");
+        return;
+    }
     console.log(`Capture button clicked. Instrument: ${selectedInstrument}`);
     if (!cam.loadedmetadata) {
         console.error("Camera not ready yet.");
@@ -209,13 +233,75 @@ function handleCapture() {
     const frameDataUrl = canvas.elt.toDataURL('image/jpeg', 0.8); // Use canvas element
     console.log("Frame captured as data URL (length):", frameDataUrl.length);
     
-    // --- Placeholder for API call ---
-    // In the next steps, this data will be sent to the backend/API handler
-    // sendToBackend(frameDataUrl, selectedInstrument);
-    //alert(`Captured frame for ${selectedInstrument}! Calling API...`); // Update feedback
-
+    // Add download button for the captured image
+    addImageDownloadButton(frameDataUrl);
+    
     // Call the API function from api.js
-    sendToBackend(frameDataUrl, selectedInstrument);
+    const audioResult = await sendToBackend(frameDataUrl, selectedInstrument);
+    
+    if (audioResult && audioResult.audioBlob) {
+        // Load the audio into the library
+        const audioItem = loadAudioToLibrary(audioResult, selectedInstrument);
+        
+        // Wait for the audio to be loaded
+        await new Promise(resolve => {
+            const checkLoaded = setInterval(() => {
+                if (audioItem.loaded) {
+                    clearInterval(checkLoaded);
+                    resolve();
+                }
+            }, 100);
+        });
+        
+        // Play the audio once
+        try {
+            await ensureAudioContext();
+            await playLastGeneratedAudio();
+            console.log("Played generated audio once");
+        } catch (error) {
+            console.error("Error playing generated audio:", error);
+        }
+    }
+}
+
+// Function to add a download button for the captured image
+function addImageDownloadButton(imageDataUrl) {
+    // Create a download container if it doesn't exist
+    let downloadContainer = document.getElementById('image-download-container');
+    if (!downloadContainer) {
+        downloadContainer = document.createElement('div');
+        downloadContainer.id = 'image-download-container';
+        downloadContainer.style.margin = '10px 0';
+        downloadContainer.innerHTML = '<h3>Captured Images</h3>';
+        
+        // Insert after camera container
+        const cameraContainer = document.getElementById('camera-container');
+        if (cameraContainer) {
+            cameraContainer.after(downloadContainer);
+        } else {
+            document.body.appendChild(downloadContainer);
+        }
+    }
+    
+    // Create download button
+    const downloadButton = document.createElement('a');
+    downloadButton.href = imageDataUrl;
+    downloadButton.download = `captured_image_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+    downloadButton.className = 'download-button';
+    downloadButton.innerHTML = 'Download Captured Image';
+    downloadButton.style.display = 'block';
+    downloadButton.style.margin = '5px 0';
+    downloadButton.style.padding = '5px 10px';
+    downloadButton.style.backgroundColor = '#4CAF50';
+    downloadButton.style.color = 'white';
+    downloadButton.style.textDecoration = 'none';
+    downloadButton.style.borderRadius = '4px';
+    downloadButton.style.textAlign = 'center';
+    
+    // Add to container
+    downloadContainer.appendChild(downloadButton);
+    
+    console.log('Added download button for captured image');
 }
 
 // Make handleCapture available globally for serial.js to access
@@ -239,45 +325,79 @@ async function sendToBackend(imageDataUrl, instrumentKey) {
         }
 
         console.log("Received scene data:", sceneData);
-        //alert(`Scene: ${sceneData.description}\nObjects: ${sceneData.objects.join(', ')}\nGenre: ${sceneData.genre}\nBPM: ${sceneData.bpm || 'N/A'}`);
 
         // --- Prepare for Stable Audio Call ---
         // Determine instrument name and prompt part based on key press or default
         const instrumentName = instrumentMap[instrumentKey]?.name || selectedInstrument;
         const instrumentPromptPart = filterKey ? (instrumentMap[filterKey]?.prompt || instrumentName.toLowerCase()) : instrumentName.toLowerCase();
 
-        // Determine genre (use GPT's unless overridden by key press)
-        const genre = filterKey ? '' : sceneData.genre; // If key pressed, omit GPT genre to focus on instrument prompt
-        // Combine scene description, genre (if not overridden), and instrument part
+        // Use global genre and scale if set, otherwise use the scene values
+        const genre = globalGenre || (filterKey ? '' : sceneData.genre);
+        const scale = globalScale || (filterKey ? '' : sceneData.key);
+        
+        // Create the prompt
         let finalAudioPrompt = `${sceneData.description}`;
+        
+        // Add genre if available
         if (genre) {
-            finalAudioPrompt += `, ${genre}`;
+            finalAudioPrompt += `, ${genre} style`;
         }
+        
+        // Add scale if available
+        if (scale) {
+            finalAudioPrompt += `, in ${scale} scale`;
+        }
+        
+        // Add instrument-specific part
         finalAudioPrompt += `, ${instrumentPromptPart}`;
+        
         // Clean up extra commas or leading/trailing commas
         finalAudioPrompt = finalAudioPrompt.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim();
 
+        // Use global BPM if set, otherwise use the scene BPM
+        const targetBpm = globalBPM || sceneData.bpm;
 
-        const targetBpm = sceneData.bpm; // Use BPM from GPT-4 if available
-
-        console.log(`Prepared Audio Prompt: "${finalAudioPrompt}", Target BPM: ${targetBpm}`);
+        // Log the exact prompt being sent
+        console.log("=== Audio Generation Prompt ===");
+        console.log("Full Prompt:", finalAudioPrompt);
+        console.log("Target BPM:", targetBpm);
+        console.log("Genre:", genre || "Not specified");
+        console.log("Scale:", scale || "Not specified");
+        console.log("Instrument:", instrumentName);
+        console.log("=============================");
 
         // --- Call generateAudio ---
-        // 'instrumentName' is already defined above
-        const audioResult = await generateAudio(finalAudioPrompt, targetBpm); // Call function from api.js
+        const audioResult = await generateAudio(finalAudioPrompt, targetBpm);
 
         if (audioResult && audioResult.audioBlob) {
             console.log("Received audio data from Stable Audio API call.");
-            // Load audio into library without playing (replacing the old loadAndPlayAudio call)
+            
+            // Store the BPM, genre, and scale if they're not already set
+            if (!globalBPM && audioResult.bpm) {
+                globalBPM = audioResult.bpm;
+                console.log(`Stored global BPM: ${globalBPM}`);
+            }
+            if (!globalGenre && genre) {
+                globalGenre = genre;
+                console.log(`Stored global genre: ${globalGenre}`);
+            }
+            if (!globalScale && scale) {
+                globalScale = scale;
+                console.log(`Stored global scale: ${globalScale}`);
+            }
+            
+            // Load audio into library without playing
             loadAudioToLibrary(audioResult, instrumentName);
-            //alert("Audio generation successful! Added to library. Use the Add to Loop button on Arduino to play.");
-        } else {
-            //alert("Audio generation failed or returned no data.");
+            
+            // Add download button for the WAV file
+            addWavDownloadButton(audioResult.audioBlob, instrumentName);
+            
+            // Update UI to show connected instruments, genre, and scale
+            updateConnectedInstrumentsUI();
         }
 
     } catch (error) {
         console.error("Error in sendToBackend flow:", error);
-        //alert(`An error occurred: ${error.message}`);
     } finally {
         // Re-enable button
         select('#capture-button').removeAttribute('disabled');
@@ -285,6 +405,88 @@ async function sendToBackend(imageDataUrl, instrumentKey) {
     }
 }
 
+// Function to add a download button for the generated WAV file
+function addWavDownloadButton(audioBlob, instrumentName) {
+    // Create a download container if it doesn't exist
+    let downloadContainer = document.getElementById('wav-download-container');
+    if (!downloadContainer) {
+        downloadContainer = document.createElement('div');
+        downloadContainer.id = 'wav-download-container';
+        downloadContainer.style.margin = '10px 0';
+        downloadContainer.innerHTML = '<h3>Generated Audio</h3>';
+        
+        // Insert after mixer container
+        const mixerContainer = document.getElementById('mixer-container');
+        if (mixerContainer) {
+            mixerContainer.after(downloadContainer);
+        } else {
+            document.body.appendChild(downloadContainer);
+        }
+    }
+    
+    // Create download button
+    const downloadUrl = URL.createObjectURL(audioBlob);
+    const downloadButton = document.createElement('a');
+    downloadButton.href = downloadUrl;
+    downloadButton.download = `${instrumentName.toLowerCase()}_generated_${new Date().toISOString().replace(/[:.]/g, '-')}.wav`;
+    downloadButton.className = 'download-button';
+    downloadButton.innerHTML = `Download ${instrumentName} Audio`;
+    downloadButton.style.display = 'block';
+    downloadButton.style.margin = '5px 0';
+    downloadButton.style.padding = '5px 10px';
+    downloadButton.style.backgroundColor = '#4CAF50';
+    downloadButton.style.color = 'white';
+    downloadButton.style.textDecoration = 'none';
+    downloadButton.style.borderRadius = '4px';
+    downloadButton.style.textAlign = 'center';
+    
+    // Remove previous download for this instrument type if exists
+    const existingDownload = downloadContainer.querySelector(`a[download^="${instrumentName.toLowerCase()}"]`);
+    if (existingDownload) {
+        URL.revokeObjectURL(existingDownload.href);
+        existingDownload.remove();
+    }
+    
+    // Add to container
+    downloadContainer.appendChild(downloadButton);
+    
+    console.log(`Added download button for ${instrumentName} audio`);
+}
+
+// Function to update UI showing connected instruments, genre, and scale
+function updateConnectedInstrumentsUI() {
+    const connectedInstrumentsDiv = document.getElementById('connected-instruments');
+    if (!connectedInstrumentsDiv) {
+        const newDiv = document.createElement('div');
+        newDiv.id = 'connected-instruments';
+        newDiv.style.margin = '10px 0';
+        newDiv.style.padding = '10px';
+        newDiv.style.backgroundColor = '#f8f9fa';
+        newDiv.style.borderRadius = '5px';
+        newDiv.innerHTML = '<h3>Connected Instruments</h3>';
+        
+        // Insert after mixer container
+        const mixerContainer = document.getElementById('mixer-container');
+        if (mixerContainer) {
+            mixerContainer.after(newDiv);
+        } else {
+            document.body.appendChild(newDiv);
+        }
+    }
+    
+    // Update the list of connected instruments, genre, and scale
+    const connectedInstruments = document.getElementById('connected-instruments');
+    const instrumentList = Array.from(previousInstruments).join(', ');
+    const genreInfo = globalGenre ? `<p>Genre: ${globalGenre}</p>` : '';
+    const scaleInfo = globalScale ? `<p>Scale: ${globalScale}</p>` : '';
+    connectedInstruments.innerHTML = `
+        <h3>Connected Instruments</h3>
+        <p>Currently connected: ${instrumentList}</p>
+        ${genreInfo}
+        ${scaleInfo}
+        <p>BPM: ${globalBPM || 'Not set'}</p>
+    `;
+}
 
 // Ensure Tone.js starts on user interaction
 window.addEventListener('DOMContentLoaded', () => {
@@ -337,6 +539,36 @@ function drawInstrumentIndicator() {
             text(selectedInstrument, 20, 30);
             
             pop();
+        }
+    }
+}
+
+async function startPlayback() {
+    if (selectedInstrument && lastGeneratedAudio) {
+        try {
+            // Ensure audio context is running
+            await ensureAudioContext();
+            
+            // Start playback using the existing audio system
+            const success = await playLastGeneratedAudio();
+            if (success) {
+                isPlaying = true;
+                console.log(`Started playback for ${selectedInstrument}`);
+            }
+        } catch (error) {
+            console.error("Error starting playback:", error);
+        }
+    }
+}
+
+function stopPlayback() {
+    if (lastGeneratedAudio && lastGeneratedAudio.player) {
+        try {
+            lastGeneratedAudio.player.stop();
+            isPlaying = false;
+            console.log('Stopped playback');
+        } catch (error) {
+            console.error("Error stopping playback:", error);
         }
     }
 }

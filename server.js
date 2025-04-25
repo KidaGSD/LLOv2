@@ -29,11 +29,14 @@ app.post('/api/generate-audio', async (req, res) => {
     const { text_prompt, bpm, duration_seconds } = req.body;
     const duration = duration_seconds || 12; // Default to 12 seconds if not specified
 
-    console.log(`Generating audio for prompt: "${text_prompt}", BPM: ${bpm}, Duration: ${duration}s`);
+    // Add instructions to remove bass, vocals, and FX
+    const modified_prompt = `${text_prompt} - no bass, no vocals, no FX, instrumental only`;
+
+    console.log(`Generating audio for prompt: "${modified_prompt}", BPM: ${bpm}, Duration: ${duration}s`);
 
     // Create form data for the Stability AI API
     const formData = new FormData();
-    formData.append('prompt', text_prompt);
+    formData.append('prompt', modified_prompt);
     formData.append('output_format', 'mp3');
     formData.append('duration', duration);
     formData.append('steps', 50); // Default steps (increase for better quality)

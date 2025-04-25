@@ -29,12 +29,9 @@ h1 {
 }
 
 /* Specific button colors from the image */
-#btn-drums { background-color: #6c757d; } /* Gray */
 #btn-bass { background-color: #343a40; } /* Dark Gray/Black */
 #btn-guitar { background-color: #fd7e14; } /* Orange */
 #btn-keys { background-color: #0dcaf0; } /* Cyan/Blue */
-#btn-vocals { background-color: #d63384; } /* Purple */
-#btn-fx { background-color: #198754; } /* Green */
 
 .main-content {
     display: flex;
