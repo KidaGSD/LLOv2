@@ -3,9 +3,24 @@
 const OPENAI_API_KEY = ""; // <-- IMPORTANT: Replace with your actual key or use a secure method
 const GPT4V_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
-const PROMPT_TEMPLATE = `Describe this scene in ≤ 50 chars;
-list 3 objects; suggest genre in 3 words;
-estimate BPM if rhythmic. Respond in JSON format: {"description": "", "objects": [], "genre": "", "bpm": null | number}`; // Modified for JSON output
+const PROMPT_TEMPLATE = `Analyze this scene and respond with:
+1. A brief description (≤ 50 chars) that focuses on visual elements, mood, and atmosphere. AVOID describing any human voices, speech, or vocal sounds.
+2. A primary emotion
+3. A musical genre (3 words max)
+4. An appropriate BPM (number)
+5. A musical scale that matches the scene's mood and colors. You MUST always provide a scale based on:
+   - Colors: warm colors suggest major scales, cool colors suggest minor scales
+   - Mood: bright scenes suggest major scales, dark scenes suggest minor scales
+   - Atmosphere: mysterious scenes suggest modal scales
+   - Common choices: D Minor, A Major, F# Dorian, G Minor, E Major, etc.
+   DO NOT use C Major unless the scene specifically suggests it.
+
+IMPORTANT: The description should focus on visual elements and avoid any mention of:
+- Text
+- Experimental genre
+- Crowds
+
+Respond in JSON format: {"description": "", "genre": "", "bpm": number, "scale": ""}`;
 
 async function describeScene(frameDataUrl) {
     if (OPENAI_API_KEY === "YOUR_OPENAI_API_KEY") {
@@ -15,7 +30,8 @@ async function describeScene(frameDataUrl) {
             description: "Mock: A cozy desk setup",
             objects: ["keyboard", "monitor", "lamp"],
             genre: "lo-fi hip-hop",
-            bpm: 85
+            bpm: 85,
+            scale: "F Major"  // Added scale to mock data
         };
         // Or throw an error: throw new Error("OpenAI API Key not configured in api.js");
     }
@@ -92,7 +108,8 @@ async function describeScene(frameDataUrl) {
                 description: "Error parsing response",
                 objects: [],
                 genre: "unknown",
-                bpm: null
+                bpm: null,
+                scale: "G Minor"  // Added scale to error fallback
             };
             // throw new Error("Could not parse JSON response from GPT-4 Vision.");
         }
@@ -104,7 +121,8 @@ async function describeScene(frameDataUrl) {
             description: "API Error",
             objects: [],
             genre: "error",
-            bpm: null
+            bpm: null,
+            scale: "E Minor"  // Added scale to API error fallback
         };
         // throw error; // Re-throw if the caller should handle it
     }
@@ -113,7 +131,7 @@ async function describeScene(frameDataUrl) {
 
 // --- Stable Audio API ---
 
-const STABLE_AUDIO_API_KEY = "sk-iOwQLkiwWbth6ukfMR4EZqPsfYlC05711YylYHGpmNO4PXqX"; // <-- IMPORTANT: Replace with your actual key or use a secure method
+const STABLE_AUDIO_API_KEY = ""; // <-- IMPORTANT: Replace with your actual key or use a secure method
 const SA_GENERATE_ENDPOINT = "http://localhost:3000/api/generate-audio"; // URL to your Node.js proxy server
 
 /**
@@ -241,7 +259,7 @@ function generateMockAudio(prompt, bpm, duration) {
         view.setUint32(40, dataSize, true);
         
         // Write audio data - simple sine wave based on BPM
-        const frequency = actualBpm / 60; // Base frequency on BPM
+        const frequency = actualBpm / 60;
         for (let i = 0; i < sampleRate * duration; i++) {
             // Create a simple sine wave at the BPM frequency
             const sampleValue = Math.sin(2 * Math.PI * frequency * i / sampleRate) * 0.5;
@@ -260,7 +278,7 @@ function generateMockAudio(prompt, bpm, duration) {
         return {
             audioBlob: audioBlob,
             bpm: actualBpm,
-            key: 'C Major', // Mock key
+            key: window.currentScale || 'F Major', // Use current scale or fallback
             duration: duration
         };
     } catch (error) {
@@ -271,7 +289,7 @@ function generateMockAudio(prompt, bpm, duration) {
         return {
             audioBlob: fallbackWav,
             bpm: bpm || 120,
-            key: 'C Major',
+            key: window.currentScale || 'F Major', // Use current scale or fallback
             duration: duration
         };
     }

@@ -41,15 +41,15 @@ app.post('/api/generate-audio', async (req, res) => {
 
     // Call the Stability AI API
     const response = await axios({
-      method: 'post',
-      url: 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio',
-      headers: {
-        'Authorization': `Bearer ${STABILITY_API_KEY}`,
-        'Accept': 'audio/*',
-        ...formData.getHeaders()
-      },
-      data: formData,
-      responseType: 'arraybuffer' // Get binary audio data
+        method: 'post',
+        url: 'https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio',
+        headers: {
+            'Authorization': `Bearer ${STABILITY_API_KEY}`,
+            'Accept': 'audio/*',
+            ...formData.getHeaders()
+        },
+        data: formData,
+        responseType: 'arraybuffer' // Get binary audio data
     });
 
     // Set appropriate headers for the audio response

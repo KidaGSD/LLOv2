@@ -69,6 +69,17 @@ function applyCurrentFilter(capture) {
 // Make functions available globally
 window.setFilterByName = setFilterByName;
 
+// Add global variables to store previous prompts and sounds
+let globalBPM = null;
+let globalGenre = null;
+let globalScale = null;
+let previousPrompts = [];
+let previousInstruments = new Set();
+
+// Add new global variables for custom input
+let customPrompt = '';
+let customImage = null;
+
 function setup() {
     canvas = createCanvas(640, 360);
     canvas.parent('p5-canvas'); // Place canvas in the div
@@ -82,6 +93,9 @@ function setup() {
     // Add event listener for the capture button
     const captureButton = select('#capture-button');
     captureButton.mousePressed(handleCapture);
+
+    // Initialize custom input UI
+    initializeCustomInput();
 
     console.log("p5.js setup complete. Camera initialized.");
 }
@@ -209,13 +223,51 @@ function handleCapture() {
     const frameDataUrl = canvas.elt.toDataURL('image/jpeg', 0.8); // Use canvas element
     console.log("Frame captured as data URL (length):", frameDataUrl.length);
     
-    // --- Placeholder for API call ---
-    // In the next steps, this data will be sent to the backend/API handler
-    // sendToBackend(frameDataUrl, selectedInstrument);
-    //alert(`Captured frame for ${selectedInstrument}! Calling API...`); // Update feedback
-
+    // Add download button for the captured image
+    addImageDownloadButton(frameDataUrl);
+    
     // Call the API function from api.js
     sendToBackend(frameDataUrl, selectedInstrument);
+}
+
+// Function to add a download button for the captured image
+function addImageDownloadButton(imageDataUrl) {
+    // Create a download container if it doesn't exist
+    let downloadContainer = document.getElementById('image-download-container');
+    if (!downloadContainer) {
+        downloadContainer = document.createElement('div');
+        downloadContainer.id = 'image-download-container';
+        downloadContainer.style.margin = '10px 0';
+        downloadContainer.innerHTML = '<h3>Captured Images</h3>';
+        
+        // Insert after camera container
+        const cameraContainer = document.getElementById('camera-container');
+        if (cameraContainer) {
+            cameraContainer.after(downloadContainer);
+        } else {
+            document.body.appendChild(downloadContainer);
+        }
+    }
+    
+    // Create download button
+    const downloadButton = document.createElement('a');
+    downloadButton.href = imageDataUrl;
+    downloadButton.download = `captured_image_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+    downloadButton.className = 'download-button';
+    downloadButton.innerHTML = 'Download Captured Image';
+    downloadButton.style.display = 'block';
+    downloadButton.style.margin = '5px 0';
+    downloadButton.style.padding = '5px 10px';
+    downloadButton.style.backgroundColor = '#4CAF50';
+    downloadButton.style.color = 'white';
+    downloadButton.style.textDecoration = 'none';
+    downloadButton.style.borderRadius = '4px';
+    downloadButton.style.textAlign = 'center';
+    
+    // Add to container
+    downloadContainer.appendChild(downloadButton);
+    
+    console.log('Added download button for captured image');
 }
 
 // Make handleCapture available globally for serial.js to access
@@ -232,52 +284,61 @@ async function sendToBackend(imageDataUrl, instrumentKey) {
         const sceneData = await describeScene(imageDataUrl); // Call function from api.js
 
         if (!sceneData || sceneData.description === "API Error" || sceneData.description === "Error parsing response") {
-            //alert("Failed to get scene description from API.");
             select('#capture-button').removeAttribute('disabled');
             select('#capture-button').html('Capture');
             return;
         }
 
         console.log("Received scene data:", sceneData);
-        //alert(`Scene: ${sceneData.description}\nObjects: ${sceneData.objects.join(', ')}\nGenre: ${sceneData.genre}\nBPM: ${sceneData.bpm || 'N/A'}`);
 
         // --- Prepare for Stable Audio Call ---
         // Determine instrument name and prompt part based on key press or default
         const instrumentName = instrumentMap[instrumentKey]?.name || selectedInstrument;
         const instrumentPromptPart = filterKey ? (instrumentMap[filterKey]?.prompt || instrumentName.toLowerCase()) : instrumentName.toLowerCase();
 
-        // Determine genre (use GPT's unless overridden by key press)
-        const genre = filterKey ? '' : sceneData.genre; // If key pressed, omit GPT genre to focus on instrument prompt
-        // Combine scene description, genre (if not overridden), and instrument part
-        let finalAudioPrompt = `${sceneData.description}`;
-        if (genre) {
-            finalAudioPrompt += `, ${genre}`;
+        // Use global genre and scale if set, otherwise use the scene values
+        const genre = globalGenre || (filterKey ? '' : sceneData.genre);
+        
+        // Always use the first scale detected, or the current global scale
+        const scale = globalScale || sceneData.scale;
+        if (!globalScale && sceneData.scale) {
+            globalScale = sceneData.scale;
+            window.currentScale = sceneData.scale;
+            console.log("Set initial scale to:", globalScale);
         }
+        
+        // Create the prompt
+        let finalAudioPrompt = `${sceneData.description}`;
+        
+        // Add genre if available
+        if (genre) {
+            finalAudioPrompt += `, ${genre} style`;
+        }
+        
+        // Always add the consistent scale to the prompt
+        if (scale) {
+            finalAudioPrompt += `, in ${scale} scale`;
+        }
+        
+        // Add instrument-specific part
         finalAudioPrompt += `, ${instrumentPromptPart}`;
+        
         // Clean up extra commas or leading/trailing commas
         finalAudioPrompt = finalAudioPrompt.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim();
 
+        // Use global BPM if set, otherwise use the scene BPM
+        const targetBpm = globalBPM || sceneData.bpm;
 
-        const targetBpm = sceneData.bpm; // Use BPM from GPT-4 if available
+        // Store the prompt and BPM for later use
+        window.currentPrompt = finalAudioPrompt;
+        window.currentBpm = targetBpm;
+        window.currentInstrument = instrumentName;
 
-        console.log(`Prepared Audio Prompt: "${finalAudioPrompt}", Target BPM: ${targetBpm}`);
-
-        // --- Call generateAudio ---
-        // 'instrumentName' is already defined above
-        const audioResult = await generateAudio(finalAudioPrompt, targetBpm); // Call function from api.js
-
-        if (audioResult && audioResult.audioBlob) {
-            console.log("Received audio data from Stable Audio API call.");
-            // Load audio into library without playing (replacing the old loadAndPlayAudio call)
-            loadAudioToLibrary(audioResult, instrumentName);
-            //alert("Audio generation successful! Added to library. Use the Add to Loop button on Arduino to play.");
-        } else {
-            //alert("Audio generation failed or returned no data.");
-        }
+        // Display the prompt in the UI
+        displayPrompt(finalAudioPrompt, targetBpm, instrumentName, scale);
 
     } catch (error) {
         console.error("Error in sendToBackend flow:", error);
-        //alert(`An error occurred: ${error.message}`);
     } finally {
         // Re-enable button
         select('#capture-button').removeAttribute('disabled');
@@ -285,6 +346,279 @@ async function sendToBackend(imageDataUrl, instrumentKey) {
     }
 }
 
+// Function to initialize custom input UI
+function initializeCustomInput() {
+    // Create or get the prompt container
+    let promptContainer = document.getElementById('prompt-container');
+    if (!promptContainer) {
+        promptContainer = document.createElement('div');
+        promptContainer.id = 'prompt-container';
+        promptContainer.style.margin = '20px 0';
+        promptContainer.style.padding = '15px';
+        promptContainer.style.backgroundColor = '#f8f9fa';
+        promptContainer.style.borderRadius = '5px';
+        
+        // Insert after camera container
+        const cameraContainer = document.getElementById('camera-container');
+        if (cameraContainer) {
+            cameraContainer.after(promptContainer);
+        } else {
+            document.body.appendChild(promptContainer);
+        }
+    }
+
+    // Get the current genre and scale, use default scale if none specified
+    const genre = globalGenre || 'Not specified';
+    const scale = globalScale || 'Not specified';
+
+    // Display the initial custom input UI
+    promptContainer.innerHTML = `
+        <h3>Custom Input</h3>
+        <p><strong>Genre:</strong> ${genre}</p>
+        <p><strong>Scale:</strong> ${scale}</p>
+        <div style="margin: 15px 0;">
+            <h4>Input Options</h4>
+            <div style="margin-bottom: 10px;">
+                <label for="custom-prompt">Custom Prompt:</label>
+                <textarea id="custom-prompt" style="width: 100%; height: 60px; margin-top: 5px;"></textarea>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label for="custom-image">Custom Image:</label>
+                <input type="file" id="custom-image" accept="image/*" style="margin-top: 5px;">
+            </div>
+            <button id="use-custom-input" style="
+                padding: 8px 15px;
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-right: 10px;
+            ">Use Custom Input</button>
+            <button id="generate-audio-button" style="
+                padding: 10px 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            ">Generate Audio</button>
+        </div>
+    `;
+
+    // Add event listeners
+    const generateButton = document.getElementById('generate-audio-button');
+    const useCustomButton = document.getElementById('use-custom-input');
+    const customPromptInput = document.getElementById('custom-prompt');
+    const customImageInput = document.getElementById('custom-image');
+
+    generateButton.addEventListener('click', generateAudioFromPrompt);
+    useCustomButton.addEventListener('click', handleCustomInput);
+    customImageInput.addEventListener('change', handleImageUpload);
+}
+
+// Function to display the prompt and add generate button
+function displayPrompt(prompt, bpm, instrument, scale) {
+    // Create or get the prompt container
+    let promptContainer = document.getElementById('prompt-container');
+    if (!promptContainer) {
+        promptContainer = document.createElement('div');
+        promptContainer.id = 'prompt-container';
+        promptContainer.style.margin = '20px 0';
+        promptContainer.style.padding = '15px';
+        promptContainer.style.backgroundColor = '#f8f9fa';
+        promptContainer.style.borderRadius = '5px';
+        
+        // Insert after camera container
+        const cameraContainer = document.getElementById('camera-container');
+        if (cameraContainer) {
+            cameraContainer.after(promptContainer);
+        } else {
+            document.body.appendChild(promptContainer);
+        }
+    }
+
+    // Get the current genre and scale
+    const genre = globalGenre || 'Not specified';
+    const displayScale = scale || globalScale || 'Not specified';
+
+    // Display the prompt and metadata
+    promptContainer.innerHTML = `
+        <h3>Generated Prompt</h3>
+        <p><strong>Prompt:</strong> ${prompt}</p>
+        <p><strong>BPM:</strong> ${bpm}</p>
+        <p><strong>Instrument:</strong> ${instrument}</p>
+        <p><strong>Genre:</strong> ${genre}</p>
+        <p><strong>Scale:</strong> ${displayScale}</p>
+        <div style="margin: 15px 0;">
+            <h4>Custom Input Options</h4>
+            <div style="margin-bottom: 10px;">
+                <label for="custom-prompt">Custom Prompt:</label>
+                <textarea id="custom-prompt" style="width: 100%; height: 60px; margin-top: 5px;"></textarea>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label for="custom-image">Custom Image:</label>
+                <input type="file" id="custom-image" accept="image/*" style="margin-top: 5px;">
+            </div>
+            <button id="use-custom-input" style="
+                padding: 8px 15px;
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-right: 10px;
+            ">Use Custom Input</button>
+            <button id="generate-audio-button" style="
+                padding: 10px 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            ">Generate Audio</button>
+        </div>
+    `;
+
+    // Add event listeners
+    const generateButton = document.getElementById('generate-audio-button');
+    const useCustomButton = document.getElementById('use-custom-input');
+    const customPromptInput = document.getElementById('custom-prompt');
+    const customImageInput = document.getElementById('custom-image');
+
+    generateButton.addEventListener('click', generateAudioFromPrompt);
+    useCustomButton.addEventListener('click', handleCustomInput);
+    customImageInput.addEventListener('change', handleImageUpload);
+}
+
+// Function to generate audio from the stored prompt
+async function generateAudioFromPrompt() {
+    if (!window.currentPrompt || !window.currentBpm || !window.currentInstrument) {
+        console.error("No prompt data available");
+        return;
+    }
+
+    try {
+        // Disable the generate button while processing
+        const generateButton = document.getElementById('generate-audio-button');
+        generateButton.disabled = true;
+        generateButton.textContent = 'Generating...';
+
+        // Call generateAudio with the stored prompt
+        const audioResult = await generateAudio(window.currentPrompt, window.currentBpm);
+
+        if (audioResult && audioResult.audioBlob) {
+            console.log("Received audio data from Stable Audio API call.");
+            
+            // Store the BPM if it's not already set
+            if (!globalBPM && audioResult.bpm) {
+                globalBPM = audioResult.bpm;
+                console.log(`Stored global BPM: ${globalBPM}`);
+            }
+            
+            // Load audio into library without playing
+            loadAudioToLibrary(audioResult, window.currentInstrument);
+            
+            // Add download button for the WAV file
+            addWavDownloadButton(audioResult.audioBlob, window.currentInstrument);
+            
+            // Update UI to show connected instruments
+            updateConnectedInstrumentsUI();
+        }
+
+    } catch (error) {
+        console.error("Error generating audio:", error);
+        alert("Failed to generate audio. Please try again.");
+    } finally {
+        // Re-enable the generate button
+        const generateButton = document.getElementById('generate-audio-button');
+        generateButton.disabled = false;
+        generateButton.textContent = 'Generate Audio';
+    }
+}
+
+// Function to add a download button for the generated WAV file
+function addWavDownloadButton(audioBlob, instrumentName) {
+    // Create a download container if it doesn't exist
+    let downloadContainer = document.getElementById('wav-download-container');
+    if (!downloadContainer) {
+        downloadContainer = document.createElement('div');
+        downloadContainer.id = 'wav-download-container';
+        downloadContainer.style.margin = '10px 0';
+        downloadContainer.innerHTML = '<h3>Generated Audio</h3>';
+        
+        // Insert after mixer container
+        const mixerContainer = document.getElementById('mixer-container');
+        if (mixerContainer) {
+            mixerContainer.after(downloadContainer);
+        } else {
+            document.body.appendChild(downloadContainer);
+        }
+    }
+    
+    // Create download button
+    const downloadUrl = URL.createObjectURL(audioBlob);
+    const downloadButton = document.createElement('a');
+    downloadButton.href = downloadUrl;
+    downloadButton.download = `${instrumentName.toLowerCase()}_generated_${new Date().toISOString().replace(/[:.]/g, '-')}.wav`;
+    downloadButton.className = 'download-button';
+    downloadButton.innerHTML = `Download ${instrumentName} Audio`;
+    downloadButton.style.display = 'block';
+    downloadButton.style.margin = '5px 0';
+    downloadButton.style.padding = '5px 10px';
+    downloadButton.style.backgroundColor = '#4CAF50';
+    downloadButton.style.color = 'white';
+    downloadButton.style.textDecoration = 'none';
+    downloadButton.style.borderRadius = '4px';
+    downloadButton.style.textAlign = 'center';
+    
+    // Remove previous download for this instrument type if exists
+    const existingDownload = downloadContainer.querySelector(`a[download^="${instrumentName.toLowerCase()}"]`);
+    if (existingDownload) {
+        URL.revokeObjectURL(existingDownload.href);
+        existingDownload.remove();
+    }
+    
+    // Add to container
+    downloadContainer.appendChild(downloadButton);
+    
+    console.log(`Added download button for ${instrumentName} audio`);
+}
+
+// Function to update UI showing connected instruments, genre, and scale
+function updateConnectedInstrumentsUI() {
+    const connectedInstrumentsDiv = document.getElementById('connected-instruments');
+    if (!connectedInstrumentsDiv) {
+        const newDiv = document.createElement('div');
+        newDiv.id = 'connected-instruments';
+        newDiv.style.margin = '10px 0';
+        newDiv.style.padding = '10px';
+        newDiv.style.backgroundColor = '#f8f9fa';
+        newDiv.style.borderRadius = '5px';
+        newDiv.innerHTML = '<h3>Connected Instruments</h3>';
+        
+        // Insert after mixer container
+        const mixerContainer = document.getElementById('mixer-container');
+        if (mixerContainer) {
+            mixerContainer.after(newDiv);
+        } else {
+            document.body.appendChild(newDiv);
+        }
+    }
+    
+    // Update the list of connected instruments, genre, and scale
+    const connectedInstruments = document.getElementById('connected-instruments');
+    const instrumentList = Array.from(previousInstruments).join(', ');
+    const genreInfo = globalGenre ? `<p>Genre: ${globalGenre}</p>` : '';
+    const scaleInfo = globalScale ? `<p>Scale: ${globalScale}</p>` : '';
+    connectedInstruments.innerHTML = `
+        <h3>Connected Instruments</h3>
+        <p>Currently connected: ${instrumentList}</p>
+        ${genreInfo}
+        ${scaleInfo}
+        <p>BPM: ${globalBPM || 'Not set'}</p>
+    `;
+}
 
 // Ensure Tone.js starts on user interaction
 window.addEventListener('DOMContentLoaded', () => {
@@ -337,6 +671,155 @@ function drawInstrumentIndicator() {
             text(selectedInstrument, 20, 30);
             
             pop();
+        }
+    }
+}
+
+// Function to handle custom image upload
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            customImage = e.target.result;
+            console.log("Custom image loaded");
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Function to handle custom input
+async function handleCustomInput() {
+    const customPromptInput = document.getElementById('custom-prompt');
+    const customPromptText = customPromptInput.value.trim();
+    
+    if (customImage) {
+        // If we have a custom image, use it to generate a prompt
+        try {
+            const sceneData = await describeScene(customImage);
+            if (sceneData && sceneData.description !== "API Error") {
+                // Always use the first scale detected, or the current global scale
+                const currentScale = globalScale || sceneData.scale;
+                if (!globalScale && sceneData.scale) {
+                    globalScale = sceneData.scale;
+                    window.currentScale = sceneData.scale;
+                    console.log("Set initial scale to:", globalScale);
+                }
+                
+                // Combine the custom prompt with the image description and scale
+                let combinedPrompt = sceneData.description;
+                
+                // Add scale to the prompt
+                combinedPrompt += `, in ${currentScale} scale`;
+                
+                // Add custom prompt text if provided
+                if (customPromptText) {
+                    combinedPrompt += `, ${customPromptText}`;
+                }
+                
+                // Store the combined prompt and metadata
+                window.currentPrompt = combinedPrompt;
+                window.currentBpm = sceneData.bpm || globalBPM || 120;
+                window.currentInstrument = selectedInstrument;
+                
+                // Update global genre if available from scene data
+                if (sceneData.genre) globalGenre = sceneData.genre;
+                
+                // Update the prompt display
+                const promptContainer = document.getElementById('prompt-container');
+                if (promptContainer) {
+                    promptContainer.innerHTML = `
+                        <h3>Generated Prompt</h3>
+                        <p><strong>Prompt:</strong> ${combinedPrompt}</p>
+                        <p><strong>BPM:</strong> ${window.currentBpm}</p>
+                        <p><strong>Instrument:</strong> ${window.currentInstrument}</p>
+                        <p><strong>Genre:</strong> ${globalGenre || 'Not specified'}</p>
+                        <p><strong>Scale:</strong> ${currentScale}</p>
+                        <div style="margin: 15px 0;">
+                            <h4>Custom Input Options</h4>
+                            <div style="margin-bottom: 10px;">
+                                <label for="custom-prompt">Custom Prompt:</label>
+                                <textarea id="custom-prompt" style="width: 100%; height: 60px; margin-top: 5px;">${customPromptText}</textarea>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label for="custom-image">Custom Image:</label>
+                                <input type="file" id="custom-image" accept="image/*" style="margin-top: 5px;">
+                            </div>
+                            <button id="use-custom-input" style="
+                                padding: 8px 15px;
+                                background-color: #6c757d;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                margin-right: 10px;
+                            ">Use Custom Input</button>
+                            <button id="generate-audio-button" style="
+                                padding: 10px 20px;
+                                background-color: #4CAF50;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                cursor: pointer;
+                            ">Generate Audio</button>
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error("Error processing custom image:", error);
+            alert("Failed to process custom image. Please try again.");
+        }
+    } else if (customPromptText) {
+        // If we only have a custom prompt, use it directly
+        const currentScale = globalScale || 'Not specified';
+        
+        // Create prompt with scale
+        const promptWithScale = `${customPromptText}, in ${currentScale} scale`;
+        
+        window.currentPrompt = promptWithScale;
+        window.currentBpm = globalBPM || 120;
+        window.currentInstrument = selectedInstrument;
+        
+        // Update the prompt display
+        const promptContainer = document.getElementById('prompt-container');
+        if (promptContainer) {
+            promptContainer.innerHTML = `
+                <h3>Generated Prompt</h3>
+                <p><strong>Prompt:</strong> ${promptWithScale}</p>
+                <p><strong>BPM:</strong> ${window.currentBpm}</p>
+                <p><strong>Instrument:</strong> ${window.currentInstrument}</p>
+                <p><strong>Genre:</strong> ${globalGenre || 'Not specified'}</p>
+                <p><strong>Scale:</strong> ${currentScale}</p>
+                <div style="margin: 15px 0;">
+                    <h4>Custom Input Options</h4>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-prompt">Custom Prompt:</label>
+                        <textarea id="custom-prompt" style="width: 100%; height: 60px; margin-top: 5px;">${customPromptText}</textarea>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-image">Custom Image:</label>
+                        <input type="file" id="custom-image" accept="image/*" style="margin-top: 5px;">
+                    </div>
+                    <button id="use-custom-input" style="
+                        padding: 8px 15px;
+                        background-color: #6c757d;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        margin-right: 10px;
+                    ">Use Custom Input</button>
+                    <button id="generate-audio-button" style="
+                        padding: 10px 20px;
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Generate Audio</button>
+                </div>
+            `;
         }
     }
 }
