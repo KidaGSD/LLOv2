@@ -17,7 +17,7 @@ async function describeScene(frameDataUrl) {
             genre: "lo-fi hip-hop",
             bpm: 85
         };
-        // Or throw an error: throw new Error("OpenAI API Key not configured in api.js");
+        // a Or throw an error: throw new Error("OpenAI API Key not configured in api.js");
     }
 
     console.log("Sending frame to GPT-4 Vision...");
