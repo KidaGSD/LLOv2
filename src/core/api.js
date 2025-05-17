@@ -30,12 +30,10 @@ function getApiBaseUrl() {
 
 // API keys - placeholder values for development
 // In production, these would be injected during build or fetched from a secure backend
-const OPENAI_API_KEY = "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"; // Replace with your actual key for production or proxy this call via backend
+const OPENAI_API_KEY = ""; // Replace with your actual key for production or proxy this call via backend
 // const STABILITY_API_KEY = "sk-iOwQLkiwWbth6ukfMR4EZqPsfYlC05711YylYHGpmNO4PXqX"; // NO LONGER USED: Stability AI calls are proxied via backend
 
-// Centralized Stability AI API call function - THIS FUNCTION IS LIKELY NO LONGER USED AND CAN BE REMOVED
-// if all Stability calls go through the Python backend proxy as intended.
-// For now, I will leave it but comment out its direct use of STABILITY_API_KEY if any.
+
 async function callStabilityAPI(endpoint, formData) {
   const url = endpoint.startsWith('http') ? endpoint : `https://api.stability.ai${endpoint}`;
   console.warn(`[callStabilityAPI DEPRECATED] Direct call to Stability API attempted for ${url}. All calls should use the backend proxy.`);
