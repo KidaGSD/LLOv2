@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section-Based Music Generator</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎵</text></svg>">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    
+    h1, h2, h3 {
+      color: #1a73e8;
+      margin-top: 1em;
+    }
+    
+    .container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+    }
+    
+    .sidebar {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .main-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .section-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .section-item {
+      padding: 15px;
+      margin-bottom: 10px;
+      background: #f0f4ff;
+      border-radius: 4px;
+      border-left: 4px solid #1a73e8;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .section-item:hover {
+      background: #e0e9ff;
+    }
+    
+    .section-item.active {
+      background: #d4e2ff;
+      border-left-color: #0d47a1;
+    }
+    
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .section-title {
+      font-weight: bold;
+      margin: 0;
+    }
+    
+    .section-controls {
+      margin-top: 10px;
+    }
+    
+    .instruments-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    
+    .instrument-tag {
+      background: #e2eaff;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8em;
+    }
+    
+    .status-tag {
+      font-size: 0.8em;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #f0f0f0;
+    }
+    
+    .status-tag.empty {
+      background: #ffeaea;
+      color: #d32f2f;
+    }
+    
+    .status-tag.selected {
+      background: #fff8e1;
+      color: #f57c00;
+    }
+    
+    .status-tag.generating {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    
+    .status-tag.ready {
+      background: #e8f5e9;
+      color: #388e3c;
+    }
+    
+    .status-tag.error {
+      background: #ffebee;
+      color: #d32f2f;
+    }
+    
+    .visualizer {
+      width: 100%;
+      height: 150px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      padding: 8px 16px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    button:hover {
+      background: #0d47a1;
+    }
+    
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    button.secondary {
+      background: #f1f3f4;
+      color: #1a73e8;
+    }
+    
+    button.secondary:hover {
+      background: #e8eaed;
+    }
+    
+    button.danger {
+      background: #ea4335;
+    }
+    
+    button.danger:hover {
+      background: #d32f2f;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 500px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .modal-title {
+      margin: 0;
+    }
+    
+    .close-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.5em;
+      cursor: pointer;
+      color: #666;
+    }
+    
+    .instrument-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    .instrument-option {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .instrument-option:hover {
+      background: #f0f4ff;
+      border-color: #1a73e8;
+    }
+    
+    .instrument-option.selected {
+      background: #e3f2fd;
+      border-color: #1a73e8;
+    }
+    
+    .instrument-name {
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+    
+    .instrument-desc {
+      font-size: 0.8em;
+      color: #666;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: #1a73e8;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .server-status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .server-status.healthy {
+      background: #e8f5e9;
+      color: #388e3c;
+    }
+    
+    .server-status.error {
+      background: #ffebee;
+      color: #d32f2f;
+    }
+    
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    
+    .status-indicator.green {
+      background: #388e3c;
+    }
+    
+    .status-indicator.red {
+      background: #d32f2f;
+    }
+    
+    .section-placeholder {
+      border: 2px dashed #ccc;
+      border-radius: 4px;
+      padding: 15px;
+      text-align: center;
+      color: #999;
+    }
+    
+    .mix-status {
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+    }
+    
+    .mix-status.processing {
+      background: #e3f2fd;
+      border-left: 4px solid #1976d2;
+    }
+    
+    .mix-status.completed {
+      background: #e8f5e9;
+      border-left: 4px solid #388e3c;
+    }
+    
+    .mix-status.error {
+      background: #ffebee;
+      border-left: 4px solid #d32f2f;
+    }
+    
+    progress {
+      width: 100%;
+      height: 6px;
+      margin-top: 10px;
+    }
+    
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    
+    /* Camera styles */
+    .camera-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    #camera-feed {
+      display: block;
+      border-radius: 8px;
+    }
+    
+    .camera-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .captured-image {
+      display: block;
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    
+    /* Additional styles for mix container */
+    #mix-container {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+      border: 1px solid #e0e0e0;
+    }
+    
+    #mix-container h2 {
+      margin-top: 0;
+    }
+    
+    #audio-player-container {
+      padding: 15px;
+      background: #f0f4ff;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    
+    /* Fix to ensure audio player is visible */
+    #audio-player {
+      display: block !important;
+      width: 100%;
+      margin-top: 10px;
+    }
+    
+    /* Additional status styling */
+    .mix-status.stitching_local {
+      background: #e3f2fd;
+      border-left: 4px solid #1976d2;
+    }
+    
+    .mix-status.completed_local {
+      background: #e8f5e9;
+      border-left: 4px solid #388e3c;
+    }
+  </style>
+</head>
+<body>
+  <h1>Section-Based Music Generator</h1>
+  
+  <div class="server-status" id="server-status">
+    <div class="status-indicator" id="status-indicator"></div>
+    <span id="status-text">Checking server status...</span>
+  </div>
+  
+  <div class="hardware-status" style="margin-bottom: 20px; padding: 8px 12px; border-radius: 4px; background: #f0f0f0;">
+    <button id="connect-arduino-btn" class="secondary" style="margin-right: 10px;">Connect Arduino</button>
+    <span id="arduino-status-text">Arduino: Not Connected</span>
+  </div>
+  
+  <div class="container">
+    <div class="sidebar">
+      <h2>Song Settings</h2>
+      
+      <div class="form-group">
+        <label for="genre">Genre</label>
+        <select id="genre">
+          <option value="pop">Pop</option>
+          <option value="rock">Rock</option>
+          <option value="electronic">Electronic</option>
+          <option value="hiphop">Hip Hop</option>
+          <option value="jazz">Jazz</option>
+          <option value="classical">Classical</option>
+          <option value="ambient">Ambient</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="bpm">BPM</label>
+        <input type="number" id="bpm" min="60" max="180" value="120">
+      </div>
+      
+      <h2>Sections</h2>
+      
+      <ul class="section-list" id="section-list">
+        <!-- Sections will be added here dynamically -->
+        <li class="section-placeholder" id="no-sections">
+          No sections added yet. Click 'Add Section' to get started.
+        </li>
+      </ul>
+      
+      <div class="controls">
+        <button id="add-section-btn">Add Section</button>
+        <button id="play-all-btn">Play All Sections</button>
+        <button id="create-mix-btn" disabled>Create Mix</button>
+        <button id="clear-sections-btn" class="danger" style="margin-top: 10px;">Clear All Sections</button>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <h2>Section Editor</h2>
+      
+      <div id="editor-placeholder" class="section-placeholder">
+        Select a section from the list to edit it or add a new section.
+      </div>
+      
+      <div id="section-editor" style="display: none;">
+        <div class="form-group">
+          <label for="section-type">Section Type</label>
+          <select id="section-type">
+            <option value="intro">Intro</option>
+            <option value="verse">Verse</option>
+            <option value="chorus">Chorus</option>
+            <option value="bridge">Bridge</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        
+        <!-- Add camera component -->
+        <div class="form-group" id="camera-container">
+          <label>Camera Capture</label>
+          <div class="camera-wrap">
+            <video id="camera-feed" autoplay playsinline style="width: 100%; max-height: 300px; background: #000;"></video>
+            <canvas id="camera-canvas" style="display: none;"></canvas>
+            <div class="camera-controls">
+              <button id="capture-btn" class="secondary">Capture Image</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="instruments-editor-grid">Instruments (Select 1-3)</label>
+          <div class="instrument-grid" id="instrument-grid-editor">
+            <!-- Instrument options will be added here dynamically -->
+          </div>
+          <div class="controls" style="margin-top: 10px;">
+            <button id="confirm-instruments-editor" class="secondary">Apply Instruments</button>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="section-description">Description</label>
+          <textarea id="section-description" placeholder="Describe how you want this section to sound..."></textarea>
+        </div>
+        
+        <div id="visualizer-container" style="display: none;">
+          <h3>Audio Preview</h3>
+          <canvas id="visualizer" class="visualizer"></canvas>
+          
+          <div class="controls">
+            <button id="play-btn">Play</button>
+            <button id="stop-btn">Stop</button>
+            <button id="download-section-btn" class="secondary" style="margin-left: auto;">Download Section</button>
+          </div>
+        </div>
+        
+        <div class="controls">
+          <button id="generate-btn">Generate Audio</button>
+          <button id="delete-section-btn" class="danger">Delete Section</button>
+        </div>
+      </div>
+      
+      <div id="mix-container" style="display: none;">
+        <h2>Mix Preview</h2>
+        
+        <div class="mix-status processing" id="mix-status">
+          <h3>Creating Mix...</h3>
+          <p id="mix-status-text">Processing sections...</p>
+          <progress id="mix-progress" value="0" max="100"></progress>
+        </div>
+        
+        <div id="audio-player-container" style="display: none;">
+          <h3>Final Mix</h3>
+          <audio id="audio-player" controls></audio>
+          
+          <div class="controls">
+            <button id="download-mix-btn">Download Mix</button>
+            <button id="create-final-mix-btn">Create High-Quality Mix</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modals -->
+  <div class="modal" id="section-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Section</h3>
+        <button class="close-btn">&times;</button>
+      </div>
+      
+      <div class="form-group">
+        <label for="modal-section-type">Section Type</label>
+        <select id="modal-section-type">
+          <option value="intro">Intro</option>
+          <option value="verse">Verse</option>
+          <option value="chorus">Chorus</option>
+          <option value="bridge">Bridge</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      
+      <div class="controls">
+        <button id="confirm-add-section">Add Section</button>
+        <button class="secondary cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Replace the placeholder script with proper module loading -->
+  <script type="module" src="app.js"></script>
+</body>
+</html> 

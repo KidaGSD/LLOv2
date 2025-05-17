@@ -39,6 +39,10 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.venv
+archive/
+*.cursor.rules/
+__pycache__/
 
 # API keys and secrets
 config.js

@@ -1,0 +1,24 @@
+{
+    "multitrackData": {
+      "trackData": [
+        {
+          "trackURL": "https://example.com/vocals.wav",
+          "instrumentGroup": "VOCAL_GROUP",
+          "presenceSetting": "LEAD",
+          "panPreference": "CENTRE",
+          "reverbPreference": "LOW"
+        },
+        {
+          "trackURL": "https://example.com/drums.wav",
+          "instrumentGroup": "DRUMS_GROUP",
+          "presenceSetting": "NORMAL",
+          "panPreference": "CENTRE",
+          "reverbPreference": "NONE"
+        }
+      ],
+      "musicalStyle": "POP",
+      "returnStems": false,
+      "sampleRate": 44100,
+      "webhookURL": "https://example.com/webhook"
+    }
+  }
