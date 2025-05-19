@@ -11,29 +11,72 @@ import { buildVisionUserMessage, getVisionSystemMessage, parseCaptionFromRespons
 const VISION_URL = "https://api.openai.com/v1/chat/completions";
 const AUDIO_URL = "https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio";
 
+// Store API base URL as a module variable to ensure consistency
+let apiBaseUrl = null;
+
 // Function to get the base URL for backend API calls
 function getApiBaseUrl() {
+  // If we've already computed the API base URL, return it
+  if (apiBaseUrl) {
+    return apiBaseUrl;
+  }
+
   let serverUrl = 'http://localhost:5000'; // Default server base
   if (window.SERVER_CONFIG && window.SERVER_CONFIG.getServerUrl()) {
     serverUrl = window.SERVER_CONFIG.getServerUrl();
   }
 
-  // Ensure serverUrl does not end with /api, then append /api once, or ensure /api is present.
+  // Ensure serverUrl does not end with /api, then append /api once
   if (serverUrl.endsWith('/api')) {
-    return serverUrl; // It already includes /api, good as is
+    apiBaseUrl = serverUrl; // It already includes /api, good as is
   } else if (serverUrl.endsWith('/')) {
-    return `${serverUrl}api`; // e.g. http://localhost:xxxx/ becomes http://localhost:xxxx/api
+    apiBaseUrl = `${serverUrl}api`; // e.g. http://localhost:xxxx/ becomes http://localhost:xxxx/api
   } else {
-    return `${serverUrl}/api`; // e.g. http://localhost:xxxx becomes http://localhost:xxxx/api
+    apiBaseUrl = `${serverUrl}/api`; // e.g. http://localhost:xxxx becomes http://localhost:xxxx/api
+  }
+
+  console.log(`[API] Using API base URL: ${apiBaseUrl}`);
+  return apiBaseUrl;
+}
+
+// Function to convert relative API paths to absolute URLs
+function resolveApiUrl(relativePath) {
+  const base = getApiBaseUrl();
+  
+  // If the path is already an absolute URL, return it
+  if (relativePath.startsWith('http')) {
+    return relativePath;
+  }
+  
+  // Special case for paths that include /api/ twice
+  if (relativePath.includes('/api/api/')) {
+    const pathParts = relativePath.split('/api/api/');
+    return `${base}/${pathParts[1]}`;
+  }
+  
+  // Check if the relativePath already has 'api' in it
+  if (relativePath.includes('/api/')) {
+    // Extract the part after /api/ and append it to the base URL
+    const pathAfterApi = relativePath.split('/api/')[1];
+    return `${base}/${pathAfterApi}`;
+  }
+  
+  // Ensure the relativePath starts with / but the base URL doesn't end with /
+  if (relativePath.startsWith('/')) {
+    return `${base}${relativePath}`;
+  } else {
+    return `${base}/${relativePath}`;
   }
 }
 
 // API keys - placeholder values for development
 // In production, these would be injected during build or fetched from a secure backend
-const OPENAI_API_KEY = ""; // Replace with your actual key for production or proxy this call via backend
+const OPENAI_API_KEY = ""
 // const STABILITY_API_KEY = "sk-iOwQLkiwWbth6ukfMR4EZqPsfYlC05711YylYHGpmNO4PXqX"; // NO LONGER USED: Stability AI calls are proxied via backend
 
-
+// Centralized Stability AI API call function - THIS FUNCTION IS LIKELY NO LONGER USED AND CAN BE REMOVED
+// if all Stability calls go through the Python backend proxy as intended.
+// For now, I will leave it but comment out its direct use of STABILITY_API_KEY if any.
 async function callStabilityAPI(endpoint, formData) {
   const url = endpoint.startsWith('http') ? endpoint : `https://api.stability.ai${endpoint}`;
   console.warn(`[callStabilityAPI DEPRECATED] Direct call to Stability API attempted for ${url}. All calls should use the backend proxy.`);
@@ -235,22 +278,6 @@ export async function generateAudio(prompt, bpm, options = {}) {
       } else {
         console.warn("[MAIN generateAudio] No server file ID in headers. Headers received:", 
           Array.from(response.headers.entries()).map(([k,v]) => `${k}: ${v}`).join(", "));
-        
-        // Look for UUID pattern in all headers as fallback
-        const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-        let foundUuid = null;
-        
-        for (const [key, value] of Object.entries(allHeaders)) {
-          if (typeof value === 'string' && uuidPattern.test(value)) {
-            console.log(`[MAIN generateAudio] Found potential UUID in header ${key}: ${value}`);
-            foundUuid = value;
-            break;
-          }
-        }
-        
-        if (foundUuid) {
-          console.log(`[MAIN generateAudio] Using fallback UUID: ${foundUuid}`);
-        }
       }
       
       console.log("[MAIN generateAudio] Audio generation successful:", {
@@ -266,7 +293,7 @@ export async function generateAudio(prompt, bpm, options = {}) {
         bpm: parseInt(returnedBpm, 10),
         key: returnedKey,
         duration: parseFloat(returnedDuration),
-        serverFileId: serverFileId || foundUuid, // Use the UUID found in headers as fallback
+        serverFileId: serverFileId, // Include server file ID in the result
         headers: allHeaders // Include all headers for reference/debugging
       };
     } catch (error) {
@@ -366,116 +393,349 @@ export async function uploadSections(sectionFiles, instruments) {
 
 /**
  * Create a preview mix using Tonn API (via our backend proxy)
+ * Enhanced to support both individual sections and stitched audio input
  * 
  * @param {Array<Object>} sectionsWithDetails - Array of section detail objects [{id: string, instruments: string[]}]
  * @param {string} genre - The overall genre for the mix
+ * @param {Object} options - Additional options
+ * @param {string} options.stitchedAudioPath - Optional path to already stitched audio (for direct final mix)
+ * @param {boolean} options.skipPreview - If true and stitchedAudioPath provided, will request final mix directly
  * @returns {Promise<Object>} Preview mix result with task ID
  */
-export async function createPreviewMix(sectionsWithDetails, genre) {
+export async function createPreviewMix(sectionsWithDetails, genre, options = {}) {
   const baseUrl = getApiBaseUrl();
+  console.log(`[API] Creating preview mix with ${sectionsWithDetails.length} sections, genre: ${genre}`);
+  
   try {
-    const response = await fetch(`${baseUrl}/create-preview-mix`, {
+    // Add timing information for debugging
+    const startTime = performance.now();
+    
+    // Check if we should skip preview and go directly to final mix
+    const skipPreview = options.skipPreview && options.stitchedAudioPath;
+    
+    // Log the full request payload for debugging
+    const requestPayload = { 
+      sections: sectionsWithDetails, 
+      genre: genre
+    };
+    
+    // Add options directly to the top level of the request payload for the server
+    if (options.stitchedAudioPath) {
+      requestPayload.stitchedAudioPath = options.stitchedAudioPath;
+    }
+    requestPayload.skipPreview = !!skipPreview;
+    
+    console.log('[API] Mix request payload:', requestPayload);
+    
+    // Determine the endpoint based on whether we're skipping preview
+    const endpoint = skipPreview ? `${baseUrl}/create-direct-mix` : `${baseUrl}/create-preview-mix`;
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
-        sections: sectionsWithDetails, 
-        genre: genre 
-      }),
+      body: JSON.stringify(requestPayload),
     });
+    
+    const endTime = performance.now();
+    console.log(`[API] Mix request completed in ${(endTime - startTime).toFixed(1)}ms`);
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      console.error("Error creating preview mix:", errorData);
+      console.error(`[API] Error creating ${skipPreview ? 'direct' : 'preview'} mix:`, errorData);
       throw new Error(errorData.detail || `HTTP error ${response.status}`);
     }
-    return await response.json();
+    
+    const responseData = await response.json();
+    console.log(`[API] ${skipPreview ? 'Direct' : 'Preview'} mix creation successful:`, responseData);
+    
+    return responseData;
   } catch (error) {
-    console.error('Network or other error in createPreviewMix:', error);
+    console.error('[API] Network or other error in createPreviewMix:', error);
     throw error;
   }
 }
 
 /**
  * Create a stitched song using Tonn API (via our backend proxy)
+ * Enhanced with fallback and retry logic for invalid overlap values
  * 
  * @param {Array<Object>} uploadedSectionDetails - Array of section detail objects [{id: string, instruments: string[]}]
  * @param {number} overlapMs - The overlap duration in milliseconds
+ * @param {Object} options - Additional options
+ * @param {number} options.retryCount - Current retry attempt (used internally)
  * @returns {Promise<Object>} Stitched song result with download URL
  */
-export async function createStitchedSong(uploadedSectionDetails, overlapMs) {
+export async function createStitchedSong(uploadedSectionDetails, overlapMs, options = {}) {
   const baseUrl = getApiBaseUrl();
+  const retryCount = options.retryCount || 0;
+  const maxRetries = 2; // Maximum number of retries
+  
   try {
+    console.log(`[API] Creating stitched song with ${uploadedSectionDetails.length} sections and ${overlapMs}ms overlap${retryCount > 0 ? ` (retry ${retryCount}/${maxRetries})` : ''}`);
+    
+    // Validate input to prevent 422 errors
+    if (!uploadedSectionDetails || !Array.isArray(uploadedSectionDetails) || uploadedSectionDetails.length < 2) {
+      throw new Error(`Invalid section details: Need at least 2 sections to stitch, got ${uploadedSectionDetails ? uploadedSectionDetails.length : 0}`);
+    }
+    
+    // Validate each section has required fields
+    const invalidSections = uploadedSectionDetails.filter(section => !section.id || !section.path);
+    if (invalidSections.length > 0) {
+      throw new Error(`Invalid section details: ${invalidSections.length} sections missing required id or path fields`);
+    }
+    
+    // Check overlap value is valid
+    if (typeof overlapMs !== 'number' || overlapMs < 0 || isNaN(overlapMs)) {
+      console.warn(`[API] Invalid overlap value: ${overlapMs}, defaulting to 200ms`);
+      overlapMs = 200; // Default to 200ms if invalid
+    }
+    
+    // Ensure overlap is reasonable to avoid 422 errors
+    if (overlapMs > 5000 && retryCount === 0) {
+      console.warn(`[API] Very large overlap value (${overlapMs}ms), might cause issues`);
+    }
+    
+    const requestPayload = {
+      uploaded_section_details: uploadedSectionDetails,
+      overlap_ms: overlapMs
+    };
+    
+    console.log(`[API] Sending stitching request: ${JSON.stringify(requestPayload, null, 2)}`);
+    
     const response = await fetch(`${baseUrl}/create-stitched-song`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        uploaded_section_details: uploadedSectionDetails,
-        overlap_ms: overlapMs,
-      }),
+      body: JSON.stringify(requestPayload),
     });
+    
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      console.error("Error creating stitched song:", errorData);
-      throw new Error(errorData.detail || `HTTP error ${response.status}`);
+      // Try to extract detailed error message
+      let errorDetail;
+      let errorData;
+      
+      try {
+        errorData = await response.json();
+        console.error("[API] Error creating stitched song:", errorData);
+        
+        // Properly extract the error message from the response
+        if (errorData.detail) {
+          errorDetail = typeof errorData.detail === 'string' 
+            ? errorData.detail 
+            : JSON.stringify(errorData.detail);
+        } else {
+          errorDetail = `HTTP error ${response.status}: ${response.statusText}`;
+        }
+      } catch (parseError) {
+        errorDetail = `HTTP error ${response.status}: ${response.statusText}`;
+        console.error(`[API] Error parsing error response: ${parseError.message}`);
+      }
+      
+      // Check if this is a 422 error and we haven't exceeded max retries
+      if (response.status === 422 && retryCount < maxRetries) {
+        // Try again with a more conservative overlap value
+        console.warn(`[API] Server rejected request with 422 error, retrying with smaller overlap value`);
+        
+        // Use a smaller overlap value for retry
+        const reducedOverlap = Math.max(50, Math.floor(overlapMs * 0.5));
+        console.log(`[API] Reducing overlap from ${overlapMs}ms to ${reducedOverlap}ms for retry`);
+        
+        // Recursive call with reduced overlap and incremented retry count
+        return createStitchedSong(uploadedSectionDetails, reducedOverlap, { 
+          retryCount: retryCount + 1 
+        });
+      }
+      
+      throw new Error(errorDetail);
     }
-    return await response.json();
+    
+    const responseData = await response.json();
+    
+    // Ensure download_url is an absolute URL
+    if (responseData.download_url && responseData.download_url.startsWith('/')) {
+      responseData.download_url = resolveApiUrl(responseData.download_url);
+      console.log(`[API] Resolved download URL: ${responseData.download_url}`);
+    }
+    
+    return responseData;
   } catch (error) {
-    console.error('Network or other error in createStitchedSong:', error);
+    console.error('[API] Network or other error in createStitchedSong:', error);
     throw error;
   }
 }
 
 /**
  * Check the status of a mix task
+ * Enhanced with better error handling and retry logic
  * 
  * @param {string} taskId - The task ID from createPreviewMix
+ * @param {number} maxRetries - Maximum number of retries for transient errors (default: 3)
  * @returns {Promise<Object>} Mix status data
  */
-export async function checkMixStatus(taskId) {
-  try {
-    // Call our backend proxy
-    const response = await fetch(`${getApiBaseUrl()}/mix-status/${taskId}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Mix status check failed: ${errorData.message || response.statusText}`);
+export async function checkMixStatus(taskId, maxRetries = 3) {
+  let retries = 0;
+  
+  while (retries <= maxRetries) {
+    try {
+      console.log(`[API] Checking mix status for task ${taskId}, attempt ${retries + 1}/${maxRetries + 1}`);
+      
+      // Call our backend proxy
+      const response = await fetch(`${getApiBaseUrl()}/mix-status/${taskId}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[API] Mix task ${taskId} not found`);
+          throw new Error(`Mix task ${taskId} not found`);
+        } else if (response.status >= 500 && retries < maxRetries) {
+          // Retry on server errors
+          retries++;
+          console.warn(`[API] Server error (${response.status}) checking mix status, retrying in 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+          continue;
+        } else {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(`Mix status check failed: ${errorData.message || response.statusText}`);
+        }
+      }
+      
+      const statusData = await response.json();
+      console.log(`[API] Mix status for task ${taskId}:`, statusData);
+      
+      return statusData;
+    } catch (error) {
+      if (retries >= maxRetries) {
+        console.error(`[API] Error checking mix status after ${maxRetries + 1} attempts:`, error);
+        throw error;
+      }
+      
+      // For network errors, retry
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        retries++;
+        console.warn(`[API] Network error checking mix status, retrying in 2s...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+      } else {
+        // For other errors, just throw
+        throw error;
+      }
     }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("Error in checkMixStatus:", error);
-    throw error;
   }
+  
+  // Should never reach here due to throws above
+  throw new Error(`Unexpected error checking mix status for task ${taskId}`);
+}
+
+/**
+ * Utility to poll for mix status until completion
+ * @param {string} taskId - Task ID to poll
+ * @param {Object} options - Poll options
+ * @param {number} options.interval - Polling interval in ms (default: 2000)
+ * @param {number} options.timeout - Maximum time to poll in ms (default: 5 minutes)
+ * @param {Function} options.onProgress - Called with status updates
+ * @returns {Promise<Object>} Final mix status
+ */
+export async function pollMixStatusUntilComplete(taskId, options = {}) {
+  const interval = options.interval || 2000;
+  const timeout = options.timeout || 300000; // 5 minutes
+  const onProgress = options.onProgress || (() => {});
+  
+  const startTime = Date.now();
+  
+  console.log(`[API] Starting mix status polling for task ${taskId}, timeout: ${timeout}ms`);
+  
+  while (Date.now() - startTime < timeout) {
+    try {
+      const status = await checkMixStatus(taskId);
+      
+      // Calculate progress percentage (if not provided)
+      if (!status.progress && status.status === 'processing') {
+        const elapsedTime = Date.now() - startTime;
+        const estimatedProgress = Math.min(95, Math.floor((elapsedTime / 60000) * 20)); // ~20% per minute, max 95%
+        status.progress = estimatedProgress;
+      }
+      
+      // Call progress callback
+      onProgress(status);
+      
+      // If mix is complete or failed, return
+      if (status.status === 'COMPLETED' || status.status === 'completed') {
+        console.log(`[API] Mix task ${taskId} completed successfully`);
+        return status;
+      } else if (status.status === 'FAILED' || status.status === 'ERROR' || status.status === 'error') {
+        console.error(`[API] Mix task ${taskId} failed:`, status);
+        throw new Error(`Mix task failed: ${status.error || 'Unknown error'}`);
+      }
+      
+      // Wait for next poll
+      await new Promise(resolve => setTimeout(resolve, interval));
+    } catch (error) {
+      console.error(`[API] Error polling mix status for task ${taskId}:`, error);
+      throw error;
+    }
+  }
+  
+  // If we get here, we've timed out
+  throw new Error(`Mix task ${taskId} timed out after ${timeout}ms`);
 }
 
 /**
  * Create a final mix using Tonn API (via our backend proxy)
+ * Enhanced to directly accept stitched audio paths
  * 
  * @param {string} previewTaskId - The task ID from a successful preview mix
+ * @param {Object} options - Additional options
+ * @param {string} options.stitchedAudioPath - Optional path to already stitched audio
  * @returns {Promise<Object>} Final mix result with download URL
  */
-export async function createFinalMix(previewTaskId) {
+export async function createFinalMix(previewTaskId, options = {}) {
   try {
+    const baseUrl = getApiBaseUrl();
+    console.log(`[API] Creating final mix for preview task ID: ${previewTaskId}`);
+    
+    // Add timing information for debugging
+    const startTime = performance.now();
+    
+    // Check if a stitched audio path was provided
+    const hasStitchedPath = !!options.stitchedAudioPath;
+    
     // Call our backend proxy
-    const response = await fetch(`${getApiBaseUrl()}/create-final-mix`, {
+    const response = await fetch(`${baseUrl}/create-final-mix`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ previewTaskId })
+      body: JSON.stringify({ 
+        previewTaskId,
+        // Include stitched audio path if provided
+        stitchedAudioPath: options.stitchedAudioPath,
+        // Add a timestamp to help with debugging
+        clientTimestamp: new Date().toISOString()
+      })
     });
     
+    const endTime = performance.now();
+    console.log(`[API] Final mix request completed in ${(endTime - startTime).toFixed(1)}ms`);
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Final mix creation failed: ${errorData.message || response.statusText}`);
+      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+      console.error("[API] Error creating final mix:", errorData);
+      throw new Error(errorData.detail || `HTTP error ${response.status}`);
     }
     
-    return await response.json();
+    const responseData = await response.json();
+    console.log(`[API] Final mix creation successful:`, responseData);
+    
+    if (!responseData.task_id) {
+      console.warn("[API] Final mix response missing task_id:", responseData);
+      // Try to extract task ID from the response if possible
+      responseData.task_id = responseData.task_id || responseData.multitrack_task_id || previewTaskId;
+    }
+    
+    return responseData;
   } catch (error) {
-    console.error("Error in createFinalMix:", error);
+    console.error("[API] Error in createFinalMix:", error);
     throw error;
   }
 }
@@ -626,7 +886,7 @@ export async function processImageWithGPT4o(imageData) {
           messages: [
             {
               role: "system",
-              content: "You are Scene-Music Captioner v2. Return **valid JSON only** with these keys: description (≤40 chars vivid summary), objects (up to 3 salient nouns), mood (2-3 adjectives), section (one of [intro, verse, chorus, bridge, outro]), genre (1-3 words), bpm (integer 60-180 or null)."
+              content: "You are Scene-Music Captioner v2, with great music taste and creative ideas for how to transfrom real world scene to a sample of audio. Return **valid JSON only** with these keys: description (≤40 chars vivid summary), objects (up to 3 salient nouns), mood (2-3 adjectives), section (one of [intro, verse, chorus, bridge, outro]), genre (1-3 words), bpm (integer 60-180 or null)."
             },
             {
               role: "user",
@@ -639,7 +899,7 @@ export async function processImageWithGPT4o(imageData) {
                 },
                 {
                   type: "text",
-                  text: "Analyze this image and return a JSON caption for music generation."
+                  text: "Analyze this image with sense of color, object, and relationships and return a JSON caption for music generation."
                 }
               ]
             }
@@ -819,8 +1079,8 @@ async function testStabilityApiDirectly() {
   }
 }
 
-// Ensure other functions like captionImage, audioBufferToWav, etc., are correctly defined and exported if necessary.
-// ... (Make sure imports and other functions are present and correct) ...
+// Export key functions
+export { getApiBaseUrl, resolveApiUrl };
 
 // --- Make sure all necessary functions are exported ---
 // (captionImage, uploadSections, createPreviewMix, checkMixStatus, createFinalMix were here)

@@ -1,0 +1,2 @@
+1. the section should be auto generated each time based on the number of the section, our composer system should map it out and assign it for generation due to the number of samples.
+2. make sure the section management is more automatic on arduino control, it is not automatically locating to the new section when a section is finished generating. Simplify the system so we do not need to manually locating the section. if a section is finish generating, it will be minized with a photo and instrucment it got selected on the side, like minial album.

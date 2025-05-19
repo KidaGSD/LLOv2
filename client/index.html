@@ -3,198 +3,299 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Section-Based Music Generator</title>
+  <title>LUMIA</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎵</text></svg>">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f8f9fa;
+    :root {
+      --primary-color: #78AAD8; /* Baby blue theme */
+      --primary-dark: #5A8BB7;
+      --primary-light: #A5C6E5;
+      --text-color: #2D3748;
+      --bg-color: #FBF9F3; /* Light cream background */
+      --card-bg: #FFFFFF;
+      --accent-color: #6B91C3;
+      --success-color: #48BB78;
+      --warning-color: #F6AD55;
+      --error-color: #F56565;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 32px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      --font-heading: 'Poppins', var(--font-sans);
     }
     
-    h1, h2, h3 {
-      color: #1a73e8;
+    body {
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      color: var(--text-color);
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+      background-color: var(--bg-color);
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      font-family: var(--font-heading);
+      color: var(--primary-dark);
       margin-top: 1em;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: var(--spacing-xl);
+      text-align: center;
+      color: var(--primary-color);
     }
     
     .container {
       display: grid;
-      grid-template-columns: 300px 1fr;
-      gap: 20px;
+      grid-template-columns: 340px 1fr;
+      gap: var(--spacing-xl);
     }
     
     .sidebar {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      background: var(--card-bg);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      height: fit-content;
     }
     
     .main-content {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      background: var(--card-bg);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
     }
     
-    .section-list {
+    /* Section Collection Grid Layout */
+    .section-collection {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: var(--spacing-md);
       list-style: none;
       padding: 0;
-      margin: 0;
+      margin: var(--spacing-md) 0;
     }
     
     .section-item {
-      padding: 15px;
-      margin-bottom: 10px;
-      background: #f0f4ff;
-      border-radius: 4px;
-      border-left: 4px solid #1a73e8;
+      padding: var(--spacing-md);
+      background: white;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--primary-light);
       cursor: pointer;
       transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
     }
     
     .section-item:hover {
-      background: #e0e9ff;
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
     }
     
     .section-item.active {
-      background: #d4e2ff;
-      border-left-color: #0d47a1;
+      border-color: var(--primary-color);
+      background: rgba(120, 170, 216, 0.05);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .section-thumb {
+      width: 100%;
+      height: 80px;
+      background-color: #f0f4ff;
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--spacing-sm);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .section-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .section-thumb-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--primary-light);
     }
     
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: var(--spacing-xs);
     }
     
     .section-title {
-      font-weight: bold;
+      font-weight: 600;
       margin: 0;
+      font-size: 0.9rem;
     }
     
     .section-controls {
-      margin-top: 10px;
+      margin-top: var(--spacing-sm);
     }
     
     .instruments-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 5px;
-      margin-top: 5px;
+      gap: 4px;
+      margin-top: var(--spacing-xs);
     }
     
     .instrument-tag {
-      background: #e2eaff;
+      background: var(--primary-light);
+      color: white;
       padding: 2px 8px;
       border-radius: 12px;
-      font-size: 0.8em;
+      font-size: 0.75rem;
+      font-weight: 500;
     }
     
     .status-tag {
-      font-size: 0.8em;
-      padding: 2px 8px;
+      font-size: 0.7rem;
+      padding: 2px 6px;
       border-radius: 12px;
-      background: #f0f0f0;
+      font-weight: 500;
     }
     
     .status-tag.empty {
-      background: #ffeaea;
-      color: #d32f2f;
+      background: #FEE2E2;
+      color: #DC2626;
     }
     
     .status-tag.selected {
-      background: #fff8e1;
-      color: #f57c00;
+      background: #FEF3C7;
+      color: #D97706;
     }
     
     .status-tag.generating {
-      background: #e3f2fd;
-      color: #1976d2;
+      background: #DBEAFE;
+      color: #2563EB;
     }
     
     .status-tag.ready {
-      background: #e8f5e9;
-      color: #388e3c;
+      background: #D1FAE5;
+      color: #059669;
     }
     
     .status-tag.error {
-      background: #ffebee;
-      color: #d32f2f;
+      background: #FEE2E2;
+      color: #DC2626;
     }
     
     .visualizer {
       width: 100%;
       height: 150px;
       background: #f5f5f5;
-      border-radius: 4px;
-      margin-top: 10px;
+      border-radius: var(--radius-md);
+      margin-top: var(--spacing-md);
     }
     
     .controls {
-      margin-top: 20px;
+      margin-top: var(--spacing-lg);
       display: flex;
-      gap: 10px;
+      gap: var(--spacing-md);
       flex-wrap: wrap;
     }
     
     button {
       padding: 8px 16px;
-      background: #1a73e8;
+      background: var(--primary-color);
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: var(--radius-md);
       cursor: pointer;
       font-weight: 500;
-      transition: background 0.2s;
+      transition: background 0.2s, transform 0.1s;
+      font-family: var(--font-sans);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
     
     button:hover {
-      background: #0d47a1;
+      background: var(--primary-dark);
+      transform: translateY(-1px);
     }
     
     button:disabled {
-      background: #cccccc;
+      background: #E2E8F0;
+      color: #718096;
       cursor: not-allowed;
+      transform: none;
     }
     
     button.secondary {
-      background: #f1f3f4;
-      color: #1a73e8;
+      background: #EDF2F7;
+      color: var(--primary-color);
     }
     
     button.secondary:hover {
-      background: #e8eaed;
+      background: #E2E8F0;
     }
     
     button.danger {
-      background: #ea4335;
+      background: #FED7D7;
+      color: #E53E3E;
     }
     
     button.danger:hover {
-      background: #d32f2f;
+      background: #FEB2B2;
     }
     
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: var(--spacing-lg);
     }
     
     label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: var(--spacing-sm);
       font-weight: 500;
+      color: var(--text-color);
     }
     
     input, select, textarea {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 10px 12px;
+      border: 1px solid #E2E8F0;
+      border-radius: var(--radius-md);
       box-sizing: border-box;
+      font-family: var(--font-sans);
+      transition: border 0.2s;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(120, 170, 216, 0.2);
     }
     
     textarea {
@@ -213,6 +314,7 @@
       z-index: 100;
       align-items: center;
       justify-content: center;
+      backdrop-filter: blur(3px);
     }
     
     .modal.show {
@@ -221,23 +323,25 @@
     
     .modal-content {
       background: white;
-      padding: 20px;
-      border-radius: 8px;
+      padding: var(--spacing-xl);
+      border-radius: var(--radius-lg);
       width: 500px;
       max-width: 90%;
       max-height: 90vh;
       overflow-y: auto;
+      box-shadow: var(--shadow-lg);
     }
     
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: var(--spacing-lg);
     }
     
     .modal-title {
       margin: 0;
+      font-weight: 600;
     }
     
     .close-btn {
@@ -245,32 +349,33 @@
       border: none;
       font-size: 1.5em;
       cursor: pointer;
-      color: #666;
+      color: #718096;
+      padding: 0;
     }
     
     .instrument-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 10px;
-      margin-top: 15px;
+      gap: var(--spacing-md);
+      margin-top: var(--spacing-md);
     }
     
     .instrument-option {
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: var(--spacing-md);
+      border: 1px solid #E2E8F0;
+      border-radius: var(--radius-md);
       cursor: pointer;
       transition: all 0.2s;
     }
     
     .instrument-option:hover {
-      background: #f0f4ff;
-      border-color: #1a73e8;
+      background: #F7FAFC;
+      border-color: var(--primary-color);
     }
     
     .instrument-option.selected {
-      background: #e3f2fd;
-      border-color: #1a73e8;
+      background: rgba(120, 170, 216, 0.1);
+      border-color: var(--primary-color);
     }
     
     .instrument-name {
@@ -280,22 +385,22 @@
     
     .instrument-desc {
       font-size: 0.8em;
-      color: #666;
+      color: #718096;
     }
     
     .loading {
       text-align: center;
-      padding: 20px;
+      padding: var(--spacing-xl);
     }
     
     .spinner {
       border: 4px solid rgba(0, 0, 0, 0.1);
-      border-left-color: #1a73e8;
+      border-left-color: var(--primary-color);
       border-radius: 50%;
       width: 24px;
       height: 24px;
       animation: spin 1s linear infinite;
-      margin: 0 auto 10px;
+      margin: 0 auto var(--spacing-md);
     }
     
     @keyframes spin {
@@ -305,21 +410,21 @@
     
     .server-status {
       padding: 8px 12px;
-      border-radius: 4px;
-      margin-bottom: 20px;
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-xl);
       display: flex;
       align-items: center;
       gap: 10px;
     }
     
     .server-status.healthy {
-      background: #e8f5e9;
-      color: #388e3c;
+      background: #D1FAE5;
+      color: #059669;
     }
     
     .server-status.error {
-      background: #ffebee;
-      color: #d32f2f;
+      background: #FEE2E2;
+      color: #DC2626;
     }
     
     .status-indicator {
@@ -329,71 +434,94 @@
     }
     
     .status-indicator.green {
-      background: #388e3c;
+      background: #059669;
     }
     
     .status-indicator.red {
-      background: #d32f2f;
+      background: #DC2626;
     }
     
     .section-placeholder {
-      border: 2px dashed #ccc;
-      border-radius: 4px;
-      padding: 15px;
+      border: 2px dashed #E2E8F0;
+      border-radius: var(--radius-md);
+      padding: var(--spacing-xl);
       text-align: center;
-      color: #999;
+      color: #718096;
     }
     
     .mix-status {
-      padding: 15px;
-      border-radius: 4px;
-      margin-top: 20px;
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-md);
+      margin-top: var(--spacing-xl);
     }
     
-    .mix-status.processing {
-      background: #e3f2fd;
-      border-left: 4px solid #1976d2;
+    .mix-status.processing, 
+    .mix-status.tonn_mixing,
+    .mix-status.tonn_mastering {
+      background: #DBEAFE;
+      border-left: 4px solid #2563EB;
     }
     
-    .mix-status.completed {
-      background: #e8f5e9;
-      border-left: 4px solid #388e3c;
+    .mix-status.completed, 
+    .mix-status.completed_local,
+    .mix-status.tonn_mix_ready,
+    .mix-status.tonn_mastering_completed {
+      background: #D1FAE5;
+      border-left: 4px solid #059669;
     }
     
-    .mix-status.error {
-      background: #ffebee;
-      border-left: 4px solid #d32f2f;
+    .mix-status.error,
+    .mix-status.tonn_error {
+      background: #FEE2E2;
+      border-left: 4px solid #DC2626;
     }
     
     progress {
       width: 100%;
-      height: 6px;
-      margin-top: 10px;
+      height: 8px;
+      margin-top: var(--spacing-md);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    progress::-webkit-progress-bar {
+      background-color: #E2E8F0;
+      border-radius: 4px;
+    }
+    
+    progress::-webkit-progress-value {
+      background-color: var(--primary-color);
+      border-radius: 4px;
     }
     
     audio {
       width: 100%;
-      margin-top: 10px;
+      margin-top: var(--spacing-md);
+      border-radius: var(--radius-md);
     }
     
     /* Camera styles */
     .camera-wrap {
       position: relative;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       overflow: hidden;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: var(--spacing-md);
+      box-shadow: var(--shadow-md);
     }
     
     #camera-feed {
       display: block;
-      border-radius: 8px;
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+      background-color: #000;
     }
     
     .camera-controls {
       display: flex;
-      gap: 10px;
-      margin-top: 10px;
+      gap: var(--spacing-md);
+      margin-top: var(--spacing-md);
     }
     
     .captured-image {
@@ -401,17 +529,18 @@
       width: 100%;
       max-height: 300px;
       object-fit: cover;
-      border-radius: 8px;
-      margin-top: 10px;
+      border-radius: var(--radius-md);
+      margin-top: var(--spacing-md);
+      box-shadow: var(--shadow-sm);
     }
     
     /* Additional styles for mix container */
     #mix-container {
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 8px;
-      background-color: #f9f9f9;
-      border: 1px solid #e0e0e0;
+      margin-top: var(--spacing-xl);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-md);
+      background-color: white;
+      border: 1px solid #E2E8F0;
     }
     
     #mix-container h2 {
@@ -419,41 +548,291 @@
     }
     
     #audio-player-container {
-      padding: 15px;
-      background: #f0f4ff;
-      border-radius: 8px;
-      margin-top: 15px;
+      padding: var(--spacing-lg);
+      background: rgba(120, 170, 216, 0.1);
+      border-radius: var(--radius-md);
+      margin-top: var(--spacing-lg);
     }
     
     /* Fix to ensure audio player is visible */
     #audio-player {
       display: block !important;
       width: 100%;
+      margin-top: var(--spacing-md);
+    }
+    
+    /* Continuous playback styles */
+    .loop-display {
+      padding: 8px 12px;
+      background: rgba(120, 170, 216, 0.1);
+      border-radius: var(--radius-md);
+      margin-top: var(--spacing-md);
+      font-size: 0.9em;
+      border-left: 3px solid var(--primary-color);
+    }
+    
+    .mix-status-indicator {
+      padding: 8px 12px;
+      background: rgba(120, 170, 216, 0.1);
+      border-radius: var(--radius-md);
+      margin-top: var(--spacing-sm);
+      font-size: 0.9em;
+      border-left: 3px solid var(--primary-color);
+    }
+    
+    .auto-mix-container {
+      margin-top: var(--spacing-lg);
+      padding: 8px 12px;
+      background: rgba(120, 170, 216, 0.1);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+    }
+    
+    /* Toggle switch styles */
+    input[type="checkbox"] {
+      height: 0;
+      width: 0;
+      visibility: hidden;
+      position: absolute;
+    }
+    
+    .auto-mix-container label {
+      cursor: pointer;
+      text-indent: 45px;
+      width: 40px;
+      height: 20px;
+      background: #CBD5E0;
+      display: block;
+      border-radius: 100px;
+      position: relative;
+      margin-left: 0 !important;
+    }
+    
+    .auto-mix-container label:after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 90px;
+      transition: 0.3s;
+    }
+    
+    input:checked + label {
+      background: var(--primary-color);
+    }
+    
+    input:checked + label:after {
+      left: calc(100% - 2px);
+      transform: translateX(-100%);
+    }
+    
+    button.active {
+      background: var(--primary-dark);
+    }
+    
+    /* Animation for the LED blinking effect in the UI */
+    @keyframes blink {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+    
+    .blinking {
+      animation: blink 1s infinite;
+    }
+    
+    /* New status highlight animations */
+    @keyframes highlight-flash {
+      0% { background-color: inherit; }
+      25% { background-color: #D1FAE5; }
+      50% { background-color: inherit; }
+      75% { background-color: #D1FAE5; }
+      100% { background-color: inherit; }
+    }
+    
+    @keyframes status-pulse {
+      0% { color: inherit; }
+      50% { color: var(--primary-color); font-weight: bold; }
+      100% { color: inherit; }
+    }
+    
+    @keyframes complete-flash {
+      0% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(5, 150, 105, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }
+    }
+    
+    /* Section highlight when ready */
+    .section-item.highlight-ready {
+      animation: highlight-flash 1.5s;
+    }
+    
+    /* Status highlight when task completes */
+    .status-highlight {
+      animation: status-pulse 2s;
+      font-weight: bold !important;
+    }
+    
+    /* Status processing indicator */
+    .processing {
+      animation: blink 1.5s infinite;
+      color: #D97706 !important;
+    }
+    
+    /* Mix status highlight when complete */
+    .mix-status.highlight-complete, .mix-status.complete-flash {
+      animation: complete-flash 1.5s;
+    }
+    
+    /* Toast notification styles */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .toast-notification {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 10px 15px;
+      border-radius: var(--radius-md);
       margin-top: 10px;
+      box-shadow: var(--shadow-md);
+      min-width: 200px;
+      max-width: 300px;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
     }
     
-    /* Additional status styling */
-    .mix-status.stitching_local {
-      background: #e3f2fd;
-      border-left: 4px solid #1976d2;
+    .toast-notification.show {
+      opacity: 1;
     }
     
-    .mix-status.completed_local {
-      background: #e8f5e9;
-      border-left: 4px solid #388e3c;
+    /* Capture effect animation */
+    @keyframes capture-flash {
+      0% { background-color: rgba(255, 255, 255, 0.0); }
+      50% { background-color: rgba(255, 255, 255, 0.3); }
+      100% { background-color: rgba(255, 255, 255, 0.0); }
+    }
+    
+    /* Effect for status messages */
+    .status-message {
+      background-color: rgba(120, 170, 216, 0.1);
+      border-left: 3px solid var(--primary-color);
+      padding: 8px 12px;
+      margin: 10px 0;
+      border-radius: 0 4px 4px 0;
+      animation: status-pulse 2s infinite;
+    }
+    
+    /* Special effect for capture action */
+    .capture-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 9999;
+      animation: capture-flash 0.5s;
+    }
+    
+    /* New minimized section style */
+    .section-miniview-container {
+      margin-top: var(--spacing-lg);
+    }
+    
+    .section-miniview-title {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: var(--spacing-sm);
+      color: var(--text-color);
+    }
+    
+    .section-miniview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: var(--spacing-sm);
+    }
+    
+    .section-miniview {
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    
+    .section-miniview:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .section-miniview.active {
+      border-color: var(--primary-color);
+    }
+    
+    .section-miniview img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      object-fit: cover;
+    }
+    
+    .section-miniview-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      font-size: 0.7rem;
+      padding: 2px 4px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    
+    .hardware-status {
+      background: white;
+      margin-bottom: var(--spacing-xl);
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Section-Based Music Generator</h1>
+  <h1>LUMIA</h1>
   
   <div class="server-status" id="server-status">
     <div class="status-indicator" id="status-indicator"></div>
     <span id="status-text">Checking server status...</span>
   </div>
   
-  <div class="hardware-status" style="margin-bottom: 20px; padding: 8px 12px; border-radius: 4px; background: #f0f0f0;">
-    <button id="connect-arduino-btn" class="secondary" style="margin-right: 10px;">Connect Arduino</button>
+  <div class="hardware-status">
+    <button id="connect-arduino-btn" class="secondary">Connect Arduino</button>
     <span id="arduino-status-text">Arduino: Not Connected</span>
   </div>
   
@@ -481,7 +860,7 @@
       
       <h2>Sections</h2>
       
-      <ul class="section-list" id="section-list">
+      <ul class="section-collection" id="section-list">
         <!-- Sections will be added here dynamically -->
         <li class="section-placeholder" id="no-sections">
           No sections added yet. Click 'Add Section' to get started.
@@ -493,6 +872,14 @@
         <button id="play-all-btn">Play All Sections</button>
         <button id="create-mix-btn" disabled>Create Mix</button>
         <button id="clear-sections-btn" class="danger" style="margin-top: 10px;">Clear All Sections</button>
+      </div>
+      
+      <!-- New Minimized Sections View -->
+      <div class="section-miniview-container" id="section-miniviews" style="display: none;">
+        <h3 class="section-miniview-title">Completed Sections</h3>
+        <div class="section-miniview-grid" id="section-miniview-grid">
+          <!-- Mini section views will be added here -->
+        </div>
       </div>
     </div>
     
@@ -549,7 +936,7 @@
           <div class="controls">
             <button id="play-btn">Play</button>
             <button id="stop-btn">Stop</button>
-            <button id="download-section-btn" class="secondary" style="margin-left: auto;">Download Section</button>
+            <button id="download-section-btn" class="secondary">Download Section</button>
           </div>
         </div>
         

@@ -61,3 +61,28 @@ secrets.json
 *~
 *.bak
 *.swp 
+
+#music local copy
+
+temp/
+server/temp
+server/temp/combined
+server/temp/mixes
+server/temp/sections
+
+
+#tonn example files
+tonn
+tonn/examples
+tonn/python-example
+
+
+#Planning Docs:
+Documents
+Documents/audio_doc.md
+Documents/building.md
+Documents/final-revise
+Documents/final-reviseplan2
+Documents/phase2.md
+Documents/phase3.md
+Documents/revise3.md
