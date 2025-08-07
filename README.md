@@ -1,4 +1,4 @@
-# Section-Based Music Generator
+# Lumia: Camera Music Generator
 
 A music generation system that allows users to create complete songs by generating sections (intro, verse, chorus, etc.) and mixing them together using AI tools.
 
